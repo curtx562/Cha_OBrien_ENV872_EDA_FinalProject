@@ -1,0 +1,67 @@
+---
+title: "HABs_Cleanup"
+author: "Curtis Cha"
+date: "3/23/2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(pacman)
+pacman::p_load(tidyverse, tigris, lubridate, sf, mapview, finch)
+```
+
+```{r setup}
+# use finch package to read in the Darwin core archive file format
+hab_dwca <- dwca_read("https://www1.usgs.gov/obis-usa/ipt/archive.do?r=calhabmap&v=1.3")
+
+hab_events <- read.delim(hab_dwca$data[1])
+hab_occ <- read.delim(hab_dwca$data[2])
+water_qual <- read.delim(hab_dwca$data[3])
+```
+
+```{r setup}
+#clean up hab_events, (EPSG:4326 WGS84), no information on what species was in bloom event
+
+hab_events$locationID <- str_extract(hab_events$locationID,"[^HABs-](\\w+)")
+hab_events$eventDate <- ymd_hms(hab_events$eventDate)
+
+hab_events <- hab_events %>% select(id, locationID, eventDate, decimalLatitude, decimalLongitude)
+
+#clean up hab_occ
+
+hab_occ <- hab_occ %>% mutate(species = paste(scientificName, "(", organismQuantityType, ")")) %>% select(id, organismQuantity, species) %>% pivot_wider(names_from = species, values_from=organismQuantity) %>% mutate_all(~replace(., is.na(.), 0))
+  
+#clean up water_qual
+water_qual <- water_qual %>%  mutate(measurement = paste(measurementType, "(", measurementUnit, ")")) %>% select(id, measurementValue, measurement) %>% pivot_wider(names_from = measurement, values_from=measurementValue)
+
+#combine so each hab events has biological and physical data
+habs_bio <- merge(hab_events, hab_occ, by = c("id"))
+habs_complete <- merge(habs_bio, water_qual, by = c('id'))
+```
+
+```{r }
+#CSVI data directly downloaded from NOAA NMFS Social Indicator Tool
+CSVI <- read_csv("./Data/socialIndicatorData.csv") %>% filter(State == "CA", Year == 2018) %>% rename("NAME" = "Community Name") %>% select(-c("Supporting Information", "Data Series", "Year", "State", "Region"))
+
+# use tigris package to extrac shpfiles for CA "06" for year 2018
+CA_places <- places(state="06", cb = T, year = "2018") %>% filter(NAME %in% CSVI$NAME) %>% select(NAME, geometry)
+
+CA_county <- counties(state="06", year = "2018") %>% select(COUNTYFP, NAME, geometry) 
+
+#use tigris to merge CSVI df to CA_place shp
+CSVI_shp <- geo_join(CA_places, CSVI, "NAME", "NAME")
+
+#using sf to represent CA counties by max CSVI scores of places
+#attach county information to places, and groupby county and summarize
+CSVI_shp2 <- st_join(CSVI_shp, CA_county) %>% 
+  group_by(COUNTYFP) %>% 
+  summarise_at(vars(-geometry), max)
+
+CSVI_shp2$geometry <- st_union(CSVI_shp2$geometry)
+
+CA_county2 <- CA_county %>% filter(COUNTYFP %in% CSVI_shp2$COUNTYFP)
+
+mapview(CSVI_shp, zcol = "Commercial Engagement Categorical Ranking")
+```
+
