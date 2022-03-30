@@ -54,14 +54,20 @@ CSVI_shp <- geo_join(CA_places, CSVI, "NAME", "NAME")
 
 #using sf to represent CA counties by max CSVI scores of places
 #attach county information to places, and groupby county and summarize
-CSVI_shp2 <- st_join(CSVI_shp, CA_county) %>% 
+#changed lines 57 to 62, converted st_join output to data by dropping geometry, final output a df of county and maximum CSVI scores. Renamed from CSVI_shp2 to CSVI_county and removed places name
+CSVI_county <- st_join(CSVI_shp, CA_county) %>%  
   group_by(COUNTYFP) %>% 
-  summarise_at(vars(-geometry), max)
+  summarise_at(vars(-geometry), max) %>% 
+  st_set_geometry(value = NULL) %>% 
+  select(-NAME.x)
 
-CSVI_shp2$geometry <- st_union(CSVI_shp2$geometry)
+# removed this line at 63 CSVI_shp2$geometry <- st_union(CSVI_shp2$geometry)
+#renamed CA_county2 to county_data, replace st_join with geo_join
 
-CA_county2 <- CA_county %>% filter(COUNTYFP %in% CSVI_shp2$COUNTYFP)
+county_data <- geo_join(CA_county %>% filter(COUNTYFP %in% CSVI_county$COUNTYFP), 
+                       CSVI_county, "COUNTYFP", "COUNTYFP")
 
-mapview(CSVI_shp, zcol = "Commercial Engagement Categorical Ranking")
+#replaced map of places and commercial engagement index with map of counties and commercial engagement index, added layer of countines visualized by Commercial Fishing engagement
+mapview(county_data, zcol = "Commercial Engagement Categorical Ranking") + mapview(county_data, zcol = "Commercial Reliance Categorical Ranking")
 ```
 
