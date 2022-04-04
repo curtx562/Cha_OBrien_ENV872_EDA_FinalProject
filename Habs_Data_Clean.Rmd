@@ -21,23 +21,21 @@ water_qual <- read.delim(hab_dwca$data[3])
 ```
 
 ```{r setup}
-#clean up hab_events, (EPSG:4326 WGS84), no information on what species was in bloom event
+#clean up hab_events, (EPSG:4326 WGS84), this df provides location data
 
-hab_events$locationID <- str_extract(hab_events$locationID,"[^HABs-](\\w+)")
-hab_events$eventDate <- ymd_hms(hab_events$eventDate)
-
-hab_events <- hab_events %>% select(id, locationID, eventDate, decimalLatitude, decimalLongitude)
+hab_events <- hab_events %>% mutate(locationID = str_extract(hab_events$id,"[^HABs-](\\w+)(?=_)")) %>% group_by(locationID) %>% summarise(latitude = unique(decimalLatitude), longitude = unique(decimalLongitude), datum = unique(geodeticDatum))
 
 #clean up hab_occ
 
 hab_occ <- hab_occ %>% mutate(species = paste(scientificName, "(", organismQuantityType, ")")) %>% select(id, organismQuantity, species) %>% pivot_wider(names_from = species, values_from=organismQuantity) %>% mutate_all(~replace(., is.na(.), 0))
   
-#clean up water_qual
-water_qual <- water_qual %>%  mutate(measurement = paste(measurementType, "(", measurementUnit, ")")) %>% select(id, measurementValue, measurement) %>% pivot_wider(names_from = measurement, values_from=measurementValue)
+#clean up water_qual, only look at temp
+water_qual <- water_qual %>%  mutate(measurement = paste(measurementType, "(", measurementUnit, ")")) %>% select(id, measurementValue, measurement) %>% pivot_wider(names_from = measurement, values_from=measurementValue) %>% select(id, "Temp ( Celsius )" )
 
-#combine so each hab events has biological and physical data
-habs_bio <- merge(hab_events, hab_occ, by = c("id"))
-habs_complete <- merge(habs_bio, water_qual, by = c('id'))
+#combined hab_occ and water_quality to biological, chemical, and physical data for each given location/time. Location and time data were extracted from the eventID string, and long/lat taken from hab_events df, then converted to sf
+
+hab_occ_wq <- merge(hab_occ, water_qual, by = c('id')) %>% mutate(locationID = str_extract(id, "[^HABs-](\\w+)(?=_)"), eventDate = ymd(str_extract(id, "(\\d+-\\d+-\\d+)"))) %>% merge(hab_events, by = c('locationID')) %>%  select("id", "locationID", "eventDate", "Temp ( Celsius )" , "Akashiwo sanguinea ( cells/L )", "Alexandrium ( cells/L )", "Cochlodinium ( cells/L )", "Dinophysis ( cells/L )", "Lingulodinium polyedra ( cells/L )", "Pseudo-nitzschia delicatissima ( cells/L )", "Pseudo-nitzschia seriata ( cells/L )", "longitude", "latitude") %>% rename_with(~gsub("\\s", "", .x)) %>% st_as_sf(coords = c('longitude', 'latitude'), crs = 4326) %>% drop_na() %>% filter(eventDate >= "2008-01-01")
+
 ```
 
 ```{r }
@@ -71,3 +69,15 @@ county_data <- geo_join(CA_county %>% filter(COUNTYFP %in% CSVI_county$COUNTYFP)
 mapview(county_data, zcol = "Commercial Engagement Categorical Ranking") + mapview(county_data, zcol = "Commercial Reliance Categorical Ranking")
 ```
 
+```{r prelim data analysis}
+#only certain species are of interest: Akashi sanguinea (reported fish and bird kills), Alexandriua (causes paralytic shellfish poisoning), cochlodinium (fish kills), dinophysis and lingulodinium (diarrhetic shellfish poisoining), and pseudo-nitzhcia (amnesic shellfishing poisoning)
+#source: https://calhabmap.org/prorocentrum-spp
+
+#should do some linear models to observe SST and certain location -> certain HABs are dependent on a location, certain areas have higher SST's
+
+#timeseries analysis to observe whether certain species are increasing over time, depending on GLM outputs, may have to subset by location rather than statewide
+SST <- ggplot(hab_occ_wq, aes(x = eventDate, y = `Temp(Celsius)`, color = locationID, group = locationID)) + geom_line()
+
+
+
+```
