@@ -23,7 +23,7 @@ water_qual_raw <- read.delim(hab_dwca$data[3])
 ```{r setup}
 #clean up hab_events, (EPSG:4326 WGS84), this df provides location data
 
-hab_events <- hab_events_raw %>% mutate(locationID = str_extract(hab_events_raw$id,"[^HABs-](\\w+)(?=_)")) %>% group_by(locationID) %>% summarise(latitude = unique(decimalLatitude), longitude = unique(decimalLongitude), datum = unique(geodeticDatum))
+locs <- hab_events_raw %>% mutate(locationID = str_extract(hab_events_raw$id,"[^HABs-](\\w+)(?=_)")) %>% group_by(locationID) %>% summarise(latitude = unique(decimalLatitude), longitude = unique(decimalLongitude), datum = unique(geodeticDatum))
 
 #only certain species are of interest: Akashi sanguinea (reported fish and bird kills), Alexandriua (causes paralytic shellfish poisoning), cochlodinium (fish kills), dinophysis and lingulodinium (diarrhetic shellfish poisoining), and pseudo-nitzhcia (amnesic shellfishing poisoning)
 #source: https://calhabmap.org/prorocentrum-spp
@@ -46,7 +46,7 @@ water_qual <- water_qual_raw %>%  mutate(measurement = paste(measurementType, "(
 hab_occ_wq <- merge(hab_occ, water_qual, by = c('id')) %>% 
   mutate(locationID = str_extract(id, "[^HABs-](\\w+)(?=_)"), 
          eventDate = ymd(str_extract(id, "(\\d+-\\d+-\\d+)"))) %>% 
-  merge(hab_events, by = c('locationID')) %>%  
+  merge(locs, by = c('locationID')) %>%  
   st_as_sf(coords = c('longitude', 'latitude'), crs = 4326) %>% 
   filter(eventDate >= "2006-01-01") %>%
   select(-c(`Salinity ( PSS )`, `Chl1 ( mg/m3 )`, `Chl2 ( mg/m3 )`,`Avg_Phaeo ( mg/m3 )`, `Avg_Chloro ( mg/m3 )`,`Phaeo1 ( mg/m3 )`, `Phaeo2 ( mg/m3 )`, `pDA ( ng/mL )`,`Nitrite_Nitrate ( uM )`, datum)) %>% filter(locationID != "SantaCruzWharf", locationID != "MontereyWharf")
@@ -111,8 +111,10 @@ df_habs2 <- df_habs %>%
          ling_hab = ifelse(ling_c_L > quantile(ling_c_L, 0.75,na.rm=TRUE), 1, 0),
          pn_del_hab = ifelse(pn_del_c_L > quantile(pn_del_c_L, 0.75,na.rm=TRUE), 1, 0),
          pn_ser_hab = ifelse(pn_ser_c_L > quantile(pn_ser_c_L, 0.75,na.rm=TRUE), 1, 0),
-         year_month = ym(paste(year(date), month(date))) ) %>%
-  group_by(location, year_month) %>%
+         year_month = ym(paste(year(date), month(date))), 
+         year= as.factor(year(date)),
+         month = as.factor(month(date))) %>%
+  group_by(location, year_month, year, month) %>%
   summarise(mean_T_C = mean(T_C, na.rm=TRUE), 
             akashi_month = sum(akashi_hab, na.rm=TRUE),
             alex_month = sum(alex_hab, na.rm=TRUE), 
@@ -126,8 +128,7 @@ df_habs2 <- df_habs %>%
             PO4_u_M = mean(PO4_u_M, na.rm=TRUE),
             SiO3_u_M = mean(SiO3_u_M, na.rm=TRUE)
             ) %>% 
-  ungroup() %>%
-  mutate(tot_events = rowSums(.[4:9]))
+  ungroup()
 
 plot(df_habs2)
 
@@ -138,55 +139,73 @@ ggplot(df_habs2, aes(x = year_month)) + geom_line(aes(y = mean_T_C, color = loca
 
 #look at one one species across locations for now, then build up from that if we can (maybe write a function to run the ggplot and summaries) (pseudo-nitzchia most common in CA and affects fisheries. Source: https://www.opc.ca.gov/programs-summary/marine-pollution/hab/)
 
+pn_habs <- filter(df_habs2) %>% 
+  select(-c((ends_with("_month") &
+              !starts_with("pn")) &
+              !starts_with("year_"))) %>%
+  mutate_at(vars(-year_month, -year, -month),~ifelse(is.nan(.), NA, .))
 
-pn_habs <- filter(df_habs2) %>% select(-c((ends_with("_month") & !starts_with("pn")) & !starts_with("year_"), tot_events)) %>% mutate_at(vars(-year_month),~ifelse(is.nan(.), NA, .))
+#create functions for iterations: na_df counts the number of NA's in each column, pn_wq_plot creates ggplot of PN concentrations & water quality measuremnts over time, pn_sst_plot creates ggplot of PN concentrations & sea surface temperature over time, glm_poiss creates glm of pn concentrations (either ser or del groups) aginst variables for water quality, sea surface temperature, year-month, and location for pn_ser and pn_del groups (separately)
 
-na2 <- pn_habs %>% group_by(location) %>% summarise_all(funs(sum(is.na(.))))
+na_df <- function(df) {
+  na_counts <- df %>% group_by(location) %>% summarise_all(funs(sum(is.na(.))))
+  return(na_counts)
+}
 
-
-pn_wq <- ggplot(pn_habs, aes(x = year_month)) + 
+pn_wq_plot <- function(df) {
+  
+  wq_plot <- ggplot(df, aes(x = year_month)) + 
   geom_line(aes(y = NH4_u_M, color  = "NH4"), color = "green", linetype = 2) + 
   geom_line(aes(y = NO3_u_M, color  = "NOx"), color = "blue", linetype = 2) + 
-  geom_line(aes(y = NO2_u_M, color  = "NOx"), color = "purple", linetype = 2) + 
+  geom_line(aes(y = NO2_u_M, color  = "NOx"), color = "blue", linetype = 2) + 
   geom_line(aes(y = PO4_u_M, color  = "PO4"), color = "pink", linetype = 2) + 
   geom_line(aes(y = SiO3_u_M, color  = "SiO4)"), color = "red", linetype = 2) +
-  geom_point(aes(y = pn_del_month * 5), shape = 1, fill = "black") +
-  geom_point(aes(y = pn_ser_month * 5), shape = 2, fill = "gray") +
+  geom_point(aes(y = pn_del_month * 5), color = "black") +
+  geom_point(aes(y = pn_ser_month * 5), color = "gray") +
   scale_y_continuous(
     name = "Water Quality u/M",
     sec.axis = sec_axis(~./10, name = "HAB Events"),
     limits = c(0.01, 45)
   )
+  
+  return(wq_plot)
+}
 
-pn_temp <- ggplot(pn_habs, aes(x = year_month)) + 
+pn_sst_plot <- function(df) {
+  
+  sst_plot <- ggplot(df, aes(x = year_month)) + 
   geom_line(aes(y = mean_T_C), color = 'red')  +
-  geom_line(aes(y = pn_del_month + 11), color = "black") +
-  geom_line(aes(y = pn_ser_month + 11), color = 'gray') +
+  geom_point(aes(y = pn_del_month + 11), color = "black") +
+  geom_point(aes(y = pn_ser_month + 11), color = 'gray') +
   scale_y_continuous(
     name = "Temperature (C)",
     sec.axis = sec_axis(~.- 11, name = "HAB Events"),
     limits = c(11.0, 20)
   )
+  
+  return(sst_plot)
+  
+}
 
-plot_grid(pn_wq, pn_temp)
+glm_poiss_pn_del <- function(df) {
+  
+  glm <- glm(data = na.omit(df), pn_del_month ~ mean_T_C + NH4_u_M + NO3_u_M + NO2_u_M + PO4_u_M + SiO3_u_M + year + month, family = poisson)
+  
+  glm_f <- step(glm, .direction = "both")
+  
+  return(glm_f)
+  
+}
 
-#glm of pn_del
-
-lm_pn1 <- glm(data = pn_habs, pn_del_month ~ location + mean_T_C + NH4_u_M + NO3_u_M + NO2_u_M + PO4_u_M + SiO3_u_M + year_month, family = poisson)
-
-summary(lm_pn1)
-plot(lm_pn1)
-lm_f <- step(lm_pn1, direction = "both")
-summary(lm_f)
-dispersiontest(lm_f)
-
-# fails overdispersion
-lm_pn2 <- glm(data = pn_habs, pn_del_month ~ location + mean_T_C + NO3_u_M + PO4_u_M + year_month, family = quasipoisson)
-
-summary(lm_pn2)
-
-
-
+glm_poiss_pn_ser <- function(df) {
+  
+  glm <- glm(data = na.omit(df), pn_ser_month ~ mean_T_C + NH4_u_M + NO3_u_M + NO2_u_M + PO4_u_M + SiO3_u_M + year + month, family = poisson)
+  
+  glm_f <- step(glm, .direction = "both")
+  
+  return(glm_f)
+  
+}
 
 ```
 ```{r}
@@ -195,52 +214,17 @@ summary(lm_pn2)
 
 calpoly_pn_habs <- pn_habs %>% filter(location == "CalPoly")
 
-colSums(is.na(calpoly_pn_habs))
+na_df(calpoly_pn_habs)
+pn_wq_plot(calpoly_pn_habs) 
+pn_sst_plot(calpoly_pn_habs)
 
-calpoly_pn_wq <- ggplot(calpoly_pn, aes(x = year_month)) + 
-  geom_line(aes(y = NH4_u_M, color  = "NH4"), color = "green", linetype = 2) + 
-  geom_line(aes(y = NOx_u_M, color  = "NOx"), color = "blue", linetype = 2) + 
-  geom_line(aes(y = PO4_u_M, color  = "PO4"), color = "pink", linetype = 2) + 
-  geom_line(aes(y = Si_u_M, color  = "SiO4)"), color = "red", linetype = 2) +
-  geom_point(aes(y = pn_del_month * 5), shape = 1, fill = "black") +
-  geom_point(aes(y = pn_ser_month * 5), shape = 2, fill = "gray") +
-  scale_y_continuous(
-    name = "Water Quality u/M",
-    sec.axis = sec_axis(~./10, name = "HAB Events"),
-    limits = c(0.01, 45)
-  )
+glm_poiss_pn_del(calpoly_pn_habs)
+glm_poiss_pn_ser(calpoly_pn_habs)
 
-calpoly_pn_temp <- ggplot(calpoly_pn, aes(x = year_month)) + 
-  geom_line(aes(y = mean_T_C), color = 'red')  +
-  geom_line(aes(y = pn_del_month + 11), color = "black") +
-  geom_line(aes(y = pn_ser_month + 11), color = 'gray') +
-  scale_y_continuous(
-    name = "Temperature (C)",
-    sec.axis = sec_axis(~.- 11, name = "HAB Events"),
-    limits = c(11.0, 20)
-  )
+pn_wq_plot(pn_habs)
+pn_sst_plot(pn_habs)
 
-plot_grid(calpoly_pn_wq, calpoly_pn_temp)
-
-class(calpoly_pn$year_month)
-
-#glm of pn_del
-
-lm_calpoly_pn1 <- glm(data = df_habs2, pn_del_month ~ mean_T_C + NH4_u_M + NO3_u_M + NO3_u_M + PO4_u_M + SiO3_u_M + year_month, family = poisson)
-
-summary(lm_calpoly_pn1)
-plot(lm_calpoly_pn1)
-lm_f <- step(lm_calpoly_pn1, direction = "both")
-summary(lm_f)
-dispersiontest(lm_f)
-
-# fails overdispersion
-lm_f2 <- glm(data = calpoly_pn, pn_del_month ~ PO4_u_M + year_month, family = quasipoisson)
-
-summary(lm_f2)
-
-
-#timeseries analysis to observe whether certain species are increasing over time ()
-
+glm_poiss_pn_del(pn_habs)
+glm_poiss_pn_ser(pn_habs)
 
 ```
