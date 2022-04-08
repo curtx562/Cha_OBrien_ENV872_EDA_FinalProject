@@ -5,28 +5,43 @@ date: "3/23/2022"
 output: pdf_document
 ---
 
-```{r setup, include=FALSE}
-#check working directory 
+```{r setup, include=FALSE, warning=FALSE}
+#set &check working directory 
+setwd("Z:/O'Brien R script/CalHabMap_FishCSVI")
 getwd()
 
+# Load your packages
 knitr::opts_chunk$set(echo = TRUE)
 library(pacman)
-pacman::p_load(tidyverse, tigris, lubridate, sf, mapview, finch, cowplot)
+pacman::p_load(tidyverse, tigris, lubridate, sf, mapview, finch, cowplot, zoo, trend, data.table)
+
+# Set your ggplot theme
+mytheme <- theme_classic(base_size = 11) +
+  theme(axis.text = element_text(color = "black"), plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
+theme_set(mytheme)
 ```
 
-```{r setup}
+```{r data input}
 # use finch package to read in the Darwin core archive file format
 hab_dwca <- dwca_read("https://www1.usgs.gov/obis-usa/ipt/archive.do?r=calhabmap&v=1.3")
 
 hab_events_raw <- read.delim(hab_dwca$data[1])
 hab_occ_raw <- read.delim(hab_dwca$data[2])
 water_qual_raw <- read.delim(hab_dwca$data[3])
+
+#save raw dataframes
+write.csv(hab_events_raw, "Z:/O'Brien R script/CalHabMap_FishCSVI/Data/Raw/hab_events_raw.csv", row.names = FALSE)
+write.csv(hab_occ_raw, "Z:/O'Brien R script/CalHabMap_FishCSVI/Data/Raw/hab_occ_raw.csv", row.names = FALSE)
+write.csv(water_qual_raw, "Z:/O'Brien R script/CalHabMap_FishCSVI/Data/Raw/water_qual_raw.csv", row.names = FALSE)
 ```
 
-```{r setup}
+```{r data wrangling}
 #clean up hab_events, (EPSG:4326 WGS84), this df provides location data
 
-locs <- hab_events_raw %>% mutate(locationID = str_extract(hab_events_raw$id,"[^HABs-](\\w+)(?=_)")) %>% group_by(locationID) %>% summarise(latitude = unique(decimalLatitude), longitude = unique(decimalLongitude), datum = unique(geodeticDatum))
+hab_events_processed <- hab_events_raw %>% 
+  mutate(locationID = str_extract(hab_events_raw$id,"[^HABs-](\\w+)(?=_)")) %>% 
+  group_by(locationID) %>% 
+  summarise(latitude = unique(decimalLatitude), longitude = unique(decimalLongitude), datum = unique(geodeticDatum))
 
 #only certain species are of interest: Akashi sanguinea (reported fish and bird kills), Alexandriua (causes paralytic shellfish poisoning), cochlodinium (fish kills), dinophysis and lingulodinium (diarrhetic shellfish poisoining), and pseudo-nitzhcia (amnesic shellfishing poisoning)
 #source: https://calhabmap.org/prorocentrum-spp
@@ -36,32 +51,48 @@ locs <- hab_events_raw %>% mutate(locationID = str_extract(hab_events_raw$id,"[^
 
 #ERDAPP has the more updated data but still limited by Monterey's monitoring dataset (goes up to 03-2020 only)
 
-hab_occ <- hab_occ_raw %>% mutate(species = paste(scientificName, "(", organismQuantityType, ")")) %>% select(id, organismQuantity, species) %>% pivot_wider(names_from = species, values_from=organismQuantity) %>% select("id", "Akashiwo sanguinea ( cells/L )", "Alexandrium ( cells/L )", "Dinophysis ( cells/L )", "Lingulodinium polyedra ( cells/L )", "Pseudo-nitzschia delicatissima ( cells/L )", "Pseudo-nitzschia seriata ( cells/L )") 
+hab_occ_processed <- hab_occ_raw %>% 
+  mutate(species = paste(scientificName, "(", organismQuantityType, ")")) %>% 
+  select(id, organismQuantity, species) %>% 
+  pivot_wider(names_from = species, values_from=organismQuantity) %>% 
+  select("id", "Akashiwo sanguinea ( cells/L )", "Alexandrium ( cells/L )", "Dinophysis ( cells/L )", "Lingulodinium polyedra ( cells/L )", "Pseudo-nitzschia delicatissima ( cells/L )", "Pseudo-nitzschia seriata ( cells/L )") 
 #%>% mutate_all(~replace(., is.na(.), 0))
 
 #clean up water_qual
-water_qual <- water_qual_raw %>%  mutate(measurement = paste(measurementType, "(", measurementUnit, ")")) %>% select(id, measurementValue, measurement) %>% pivot_wider(names_from = measurement, values_from=measurementValue)
+water_qual_processed <- water_qual_raw %>%  
+  mutate(measurement = paste(measurementType, "(", measurementUnit, ")")) %>% 
+  select(id, measurementValue, measurement) %>% 
+  pivot_wider(names_from = measurement, values_from=measurementValue)
 
 #combined hab_occ and water_quality to biological, chemical, and physical data for each given location/time. Location and time data were extracted from the eventID string, and long/lat taken from hab_events df, then converted to sf
 
 #try looking at all the water_quality. remove pDA (biotoxin of pseudo-nitzchia), phaeo, chlorophyll because they are byproducts of HABs (just want to use HAB concentrations as measurement of HAB), salinity because too many NA's. chose not to fill in HAB data. 
 
-hab_occ_wq <- merge(hab_occ, water_qual, by = c('id')) %>% 
+hab_occ_wq <- merge(hab_occ_processed, water_qual_processed, by = c('id')) %>% 
   mutate(locationID = str_extract(id, "[^HABs-](\\w+)(?=_)"), 
          eventDate = ymd(str_extract(id, "(\\d+-\\d+-\\d+)"))) %>% 
-  merge(locs, by = c('locationID')) %>%  
+  merge(hab_events_processed, by = c('locationID')) %>%  
   st_as_sf(coords = c('longitude', 'latitude'), crs = 4326) %>% 
   filter(eventDate >= "2006-01-01") %>%
   select(-c(`Salinity ( PSS )`, `Chl1 ( mg/m3 )`, `Chl2 ( mg/m3 )`,`Avg_Phaeo ( mg/m3 )`, `Avg_Chloro ( mg/m3 )`,`Phaeo1 ( mg/m3 )`, `Phaeo2 ( mg/m3 )`, `pDA ( ng/mL )`,`Nitrite_Nitrate ( uM )`, datum)) %>% filter(locationID != "SantaCruzWharf", locationID != "MontereyWharf")
 
-#monterey and sc have lots of na's, wil drop
+#monterey and sc have lots of na's, will drop
 na <- hab_occ_wq %>% group_by(locationID) %>% summarise_all(funs(sum(is.na(.))))
 
+
+#save processed dataframes
+write.csv(hab_events_processed, "Z:/O'Brien R script/CalHabMap_FishCSVI/Data/Processed/hab_events_processed.csv", row.names = FALSE)
+write.csv(hab_occ_processed, "Z:/O'Brien R script/CalHabMap_FishCSVI/Data/Processed/hab_occ_processed.csv", row.names = FALSE)
+write.csv(water_qual_processed, "Z:/O'Brien R script/CalHabMap_FishCSVI/Data/Processed/water_qual_processed.csv", row.names = FALSE)
+write.csv(hab_occ_wq, "Z:/O'Brien R script/CalHabMap_FishCSVI/Data/Processed/hab_occ_wq.csv", row.names = FALSE)
 ```
 
-```{r }
+```{r}
 #CSVI data directly downloaded from NOAA NMFS Social Indicator Tool
 CSVI <- read_csv("./Data/socialIndicatorData.csv") %>% filter(State == "CA", Year == 2018) %>% rename("NAME" = "Community Name") %>% select(-c("Supporting Information", "Data Series", "Year", "State", "Region"))
+
+#save processed CSVI csv
+write.csv(CSVI, "Z:/O'Brien R script/CalHabMap_FishCSVI/Data/Processed/CSVI_processed.csv", row.names = FALSE)
 
 # use tigris package to extrac shpfiles for CA "06" for year 2018
 CA_places <- places(state="06", cb = T, year = "2018") %>% filter(NAME %in% CSVI$NAME) %>% select(NAME, geometry)
@@ -89,6 +120,7 @@ county_data <- geo_join(CA_county %>% filter(COUNTYFP %in% CSVI_county$COUNTYFP)
 #replaced map of places and commercial engagement index with map of counties and commercial engagement index, added layer of countines visualized by Commercial Fishing engagement
 mapview(county_data, zcol = "Commercial Engagement Categorical Ranking") + mapview(county_data, zcol = "Commercial Reliance Categorical Ranking")
 ```
+
 
 ```{r prelim data analysis}
 
@@ -231,3 +263,42 @@ glm_poiss_pn_del(pn_habs)
 glm_poiss_pn_ser(pn_habs)
 
 ```
+
+```{r Time series analysis: Alexandirum}
+#generate daily dataset
+Days.Alexandrium <- as.data.frame(seq(from = as.Date("2008-06-30"), to = as.Date("2021-09-13"), by = 1))
+#change column name
+setnames(Days, "eventDate")
+
+#combine dataframes
+HAB_daily_df <- left_join(Days, hab_occ_wq, by = "eventDate")
+
+sum(is.na(HAB_daily_df$`Dinophysis ( cells/L )`))
+dim(HAB_daily_df)
+
+#Interpolate missing Alexandrium values
+HAB_Alexandrium_interpolation <- HAB_daily_df %>%
+  mutate(interpolation = zoo::na.approx(HAB_daily_df$`Alexandrium ( cells/L )`))
+
+#establish starting points
+fmonth.daily <- month(first(HAB_Alexandrium_interpolation$eventDate))
+fyear.daily <- year(first(HAB_Alexandrium_interpolation$eventDate))
+
+
+#time series based on interpolated daily Alexandrium concentrations 
+Alexandrium.daily.ts <- ts(HAB_Alexandrium_interpolation$`interpolation`,
+                  start=c(fyear.daily, fmonth.daily),
+                  frequency=365) 
+
+#print
+print(Alexandrium.daily.ts)
+
+#decomposed daily time series
+DailyDecomp <- stl(Alexandrium.daily.ts, s.window = "periodic")
+plot(DailyDecomp)
+
+#Run the Mann Kendall tets
+Alexandrium_MannKendall <- Kendall::SeasonalMannKendall(Alexandrium.daily.ts)
+summary(Alexandrium_MannKendall)
+```
+
