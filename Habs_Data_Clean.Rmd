@@ -6,9 +6,12 @@ output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
+#check working directory 
+getwd()
+
 knitr::opts_chunk$set(echo = TRUE)
 library(pacman)
-pacman::p_load(tidyverse, tigris, lubridate, sf, mapview, finch)
+pacman::p_load(tidyverse, tigris, lubridate, sf, mapview, finch, cowplot)
 ```
 
 ```{r setup}
