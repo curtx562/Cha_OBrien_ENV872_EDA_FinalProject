@@ -57,6 +57,8 @@ hab_occ_wq <- merge(hab_occ, water_qual, by = c('id')) %>%
 #monterey and sc have lots of na's, wil drop
 na <- hab_occ_wq %>% group_by(locationID) %>% summarise_all(funs(sum(is.na(.))))
 
+mapview(hab_occ_wq)
+
 ```
 
 ```{r }
@@ -163,8 +165,8 @@ pn_wq_plot <- function(df) {
   geom_line(aes(y = NO2_u_M, color  = "NOx"), color = "blue", linetype = 2) + 
   geom_line(aes(y = PO4_u_M, color  = "PO4"), color = "pink", linetype = 2) + 
   geom_line(aes(y = SiO3_u_M, color  = "SiO4)"), color = "red", linetype = 2) +
-  geom_point(aes(y = pn_del_month * 5), color = "black") +
-  geom_point(aes(y = pn_ser_month * 5), color = "gray") +
+  geom_point(aes(y = pn_del_month * 5), color = "black", shape = 15) +
+  geom_point(aes(y = pn_ser_month * 5), color = "blue",  shape = 17) +
   scale_y_continuous(
     name = "Water Quality u/M",
     sec.axis = sec_axis(~./10, name = "HAB Events"),
@@ -178,8 +180,8 @@ pn_sst_plot <- function(df) {
   
   sst_plot <- ggplot(df, aes(x = year_month)) + 
   geom_line(aes(y = mean_T_C), color = 'red')  +
-  geom_point(aes(y = pn_del_month + 11), color = "black") +
-  geom_point(aes(y = pn_ser_month + 11), color = 'gray') +
+  geom_line(aes(y = pn_del_month + 11), color = "black") +
+  geom_line(aes(y = pn_ser_month + 11), color = "blue") +
   scale_y_continuous(
     name = "Temperature (C)",
     sec.axis = sec_axis(~.- 11, name = "HAB Events"),
@@ -215,19 +217,31 @@ glm_poiss_pn_ser <- function(df) {
 
 #look at one city and one species for now, then build up from that if we can (maybe write a function to run the ggplot and summaries)
 
-calpoly_pn_habs <- pn_habs %>% filter(location == "CalPoly")
+lox <- unique(locs[order(locs$latitude),]$locationID)[1:5]
 
-na_df(calpoly_pn_habs)
-pn_wq_plot(calpoly_pn_habs) 
-pn_sst_plot(calpoly_pn_habs)
+wq_plot <- c()
+sst_plot <- c()
+glm_del <- c()
+glm_ser <- c()
 
-glm_poiss_pn_del(calpoly_pn_habs)
-glm_poiss_pn_ser(calpoly_pn_habs)
+for (i in seq(length(lox))) {
+
+  df <- assign(paste0(lox[i], "_pn_habs"), pn_habs %>% filter(location == lox[i]))
+  wq_plot[[i]] <- assign(paste0(i,"_pn_wq_plot"), pn_wq_plot(df))
+  sst_plot[[i]] <- assign(paste0(i,"_pn_sst_plot"), pn_sst_plot(df))
+  glm_del[[i]] <- assign(paste0(i,"_glm_poiss_pn_del"), summary(glm_poiss_pn_del(df)))
+  glm_ser[[i]] <- assign(paste0(i,"_glm_poiss_pn_ser"), summary(glm_poiss_pn_ser(df)))
+  
+}
 
 pn_wq_plot(pn_habs)
 pn_sst_plot(pn_habs)
 
 glm_poiss_pn_del(pn_habs)
 glm_poiss_pn_ser(pn_habs)
+
+plot_grid(plotlist = wq_plot[1:3], nrow = 3, labels = lox )
+plot_grid(plotlist = sst_plot[1:3], nrow = 3, labels = lox )
+
 
 ```
