@@ -19,7 +19,7 @@ pacman::p_load(tidyverse, tigris, lubridate, sf, mapview, finch, cowplot, zoo, t
 
 # Set your ggplot theme
 mytheme <- theme_classic(base_size = 11) +
-  theme(axis.text = element_text(color = "black"), plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
+  theme(axis.text = element_text(color = "black"), plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), plot.caption = element_text(hjust = 0.5))
 theme_set(mytheme)
 ```
 
@@ -125,7 +125,6 @@ county_data <- geo_join(CA_county %>% filter(COUNTYFP %in% CSVI_county$COUNTYFP)
 mapview(county_data, zcol = "Commercial Engagement Categorical Ranking") + mapview(county_data, zcol = "Commercial Reliance Categorical Ranking")
 ```
 
-
 ```{r prelim data analysis}
 df_habs <- st_drop_geometry(hab_occ_wq) %>% 
   mutate(month = month(eventDate), year = year(eventDate)) %>% 
@@ -146,39 +145,80 @@ df_habs_interp <- df_habs %>% group_by(location) %>%
          sio3 = na.approx(sio3, na.rm  = F)
          )
 
+#prelim plots of sst, pn, and alex over time, grouped by location
 sst <- ggplot(df_habs_interp, aes(x = date, color = location)) + geom_line(aes(y = temp)) + labs(title = "SST over Time", y ="Temperature (C)", x = "Date", color = "Location")
 
-pn <- ggplot(df_habs_interp, aes(x = date, color = location)) + geom_line(aes(y = pn)) + labs(title = "P. seriata over Time", y ="Concentration (uM)", x = "Date", color = "Location")
+pn <- ggplot(df_habs_interp, aes(x = date, color = location)) + geom_line(aes(y = pn)) + labs(title = "P. seriata over Time", y ="Concentration (uM)", x = "Date", color = "Location") 
 
 alex <- ggplot(df_habs_interp, aes(x = date, color = location)) + geom_line(aes(y = alex)) + labs(title = "Alexandrium over Time", y ="Concentration (uM)", x = "Date", color = "Location")
 
-
-
 ```
 
-```{r}
+```{r lms SoCal}
+# create lms for pn and alex for whole SoCal region
+lm_pn <- step(lm(data = df_habs_interp %>% drop_na(), pn ~ . -alex-date))
 
-lm_pn <- step(lm(data = df_habs_interp, pn ~ . -alex-date))
-summary(lm_pn)
+SC_pn_lm <- as.data.frame(tidy(lm_pn)) %>% 
+    select(term, estimate) %>% 
+    pivot_wider(names_from = term, values_from = estimate)
+
+lm_alex <- step(lm(data = df_habs_interp %>% drop_na(), alex ~ . -pn-date))
+
+SC_al_lm <- as.data.frame(tidy(lm_alex)) %>% 
+    select(term, estimate) %>% 
+    pivot_wider(names_from = term, values_from = estimate)
+
+#df of lm coefficients
+SC_lm <- bind_rows(SC_pn_lm, SC_al_lm)
+```
+```{r glms cities}
+
+#create lms and plots of pn and alex [] for each city
 
 dfs <- c()
 pns <- c()
+pns_plots <- c()
 alexs <- c()
-
+alexs_plots <- c()
 
 cities <- c("CalPoly", "StearnsWharf", "SantaMonicaPier", "NewportPier", "ScrippsPier")
 
+#for loop to generate plots and lms
 for (i in seq(length(cities))) {
   
   df <- df_habs_interp %>% filter(location == cities[i]) %>% drop_na()
-  lm_pn <- step(lm(data = df, pn ~ nh4 + no3 + no2 + po4 + sio3 + temp + month + year))
-  summary(lm_pn)
-  lm_alex <-  step(lm(data = df, alex ~ nh4 + no3 + no2 + po4 + sio3 + temp + month + year))
   dfs[[i]] <- df
-  pns[[i]] <- lm_pn
-  alexs[[i]] <- lm_alex
+  
+  pns[[i]] <- step(lm(data = df, pn ~ nh4 + no3 + no2 + po4 + sio3 + temp + month + year)) 
+  pns_plots[[i]] <- ggplot(df, aes(x = date, y = pn)) + geom_line() + geom_smooth(method = 'lm', se= F) + labs(title = "Pseudo. over Time", subtitle = cities[i], x = "Date", y = "Concentration (uM)")
+  
+  alexs[[i]] <- step(lm(data = df, alex ~ nh4 + no3 + no2 + po4 + sio3 + temp + month + year))
+  alexs_plots[[i]] <- ggplot(df, aes(x = date, y = alex)) + geom_line() + geom_smooth(method = 'lm', se = F) + labs(title = "Alex. over Time", subtitle = cities[i], x = "Date", y = "Concentration (uM)")
   
 }
+#plots of pns and alexs for each city
+plot_grid(plotlist = pns_plots)
+plot_grid(plotlist = alexs_plots)
+
+#for loop to organize lm coefficients into dataframes
+lm_pn_cities <- c()
+
+lm_al_cities <- c()
+
+for (i in seq(length(cities))) {
+  
+  lm_pn_cities[[i]] <- as.data.frame(tidy(pns[[i]])) %>% 
+    select(term, estimate) %>% 
+    pivot_wider(names_from = term, values_from = estimate)
+  
+  lm_al_cities[[i]] <- as.data.frame(tidy(alexs[[i]])) %>% 
+    select(term, estimate) %>% 
+    pivot_wider(names_from = term, values_from = estimate)
+}
+
+#dfs of pn lms coeffs and alex lm coeffs
+pn_lms <- cbind(cities, do.call(bind_rows, lm_pn_cities)) %>% select(-"(Intercept)")
+al_lms <- cbind(cities, do.call(bind_rows, lm_al_cities)) %>% select(-"(Intercept)")
 
 ```
 
