@@ -9,7 +9,7 @@ editor_options:
 
 ```{r setup, include=FALSE, warning=FALSE}
 #set &check working directory 
-setwd("Z:/O'Brien R script/CalHabMap_FishCSVI")
+
 getwd()
 
 # Load your packages
@@ -32,9 +32,9 @@ hab_occ_raw <- read.delim(hab_dwca$data[2])
 water_qual_raw <- read.delim(hab_dwca$data[3])
 
 #save raw dataframes
-write.csv(hab_events_raw, "Z:/O'Brien R script/CalHabMap_FishCSVI/Data/Raw/hab_events_raw.csv", row.names = FALSE)
-write.csv(hab_occ_raw, "Z:/O'Brien R script/CalHabMap_FishCSVI/Data/Raw/hab_occ_raw.csv", row.names = FALSE)
-write.csv(water_qual_raw, "Z:/O'Brien R script/CalHabMap_FishCSVI/Data/Raw/water_qual_raw.csv", row.names = FALSE)
+write.csv(hab_events_raw, "./Data/Raw/hab_events_raw.csv", row.names = FALSE)
+write.csv(hab_occ_raw, "./Data/Raw/hab_occ_raw.csv", row.names = FALSE)
+write.csv(water_qual_raw, "./Data/Raw/water_qual_raw.csv", row.names = FALSE)
 ```
 
 ```{r data wrangling}
@@ -68,7 +68,7 @@ water_qual_processed <- water_qual_raw %>%
 
 #combined hab_occ and water_quality to biological, chemical, and physical data for each given location/time. Location and time data were extracted from the eventID string, and long/lat taken from hab_events df, then converted to sf
 
-#try looking at all the water_quality. remove pDA (biotoxin of pseudo-nitzchia), phaeo, chlorophyll because they are byproducts of HABs (just want to use HAB concentrations as measurement of HAB), salinity because too many NA's. chose not to fill in HAB data. 
+#try looking at all the water_quality. remove pDA (biotoxin of pseudo-nitzchia), phaeo, chlorophyll because they are byproducts of HABs (just want to use HAB concentrations as measurement of HAB), salinity because too many NA's. chose not to fill in HAB data. Chose to look only at P_ser and Alexandrium (Amenisic Shellfish Poisoning, Paralytic Shellfish Poisoning environmental health risks)
 
 hab_occ_wq <- merge(hab_occ_processed, water_qual_processed, by = c('id')) %>% 
   mutate(locationID = str_extract(id, "[^HABs-](\\w+)(?=_)"), 
@@ -76,30 +76,27 @@ hab_occ_wq <- merge(hab_occ_processed, water_qual_processed, by = c('id')) %>%
   merge(hab_events_processed, by = c('locationID')) %>%  
   st_as_sf(coords = c('longitude', 'latitude'), crs = 4326) %>% 
   filter(eventDate >= "2006-01-01") %>%
-  select(-c(`Salinity ( PSS )`, `Chl1 ( mg/m3 )`, `Chl2 ( mg/m3 )`,`Avg_Phaeo ( mg/m3 )`, `Avg_Chloro ( mg/m3 )`,`Phaeo1 ( mg/m3 )`, `Phaeo2 ( mg/m3 )`, `pDA ( ng/mL )`,`Nitrite_Nitrate ( uM )`, datum)) %>% filter(locationID != "SantaCruzWharf", locationID != "MontereyWharf")
+  select(-c(`Salinity ( PSS )`, `Chl1 ( mg/m3 )`, `Chl2 ( mg/m3 )`,`Avg_Phaeo ( mg/m3 )`, `Avg_Chloro ( mg/m3 )`,`Phaeo1 ( mg/m3 )`, `Phaeo2 ( mg/m3 )`, `pDA ( ng/mL )`,`Nitrite_Nitrate ( uM )`, datum, `Akashiwo sanguinea ( cells/L )`,`Akashiwo sanguinea ( cells/L )`, `Lingulodinium polyedra ( cells/L )`, `Pseudo-nitzschia delicatissima ( cells/L )`, `Dinophysis ( cells/L )`)) %>% filter(locationID != "SantaCruzWharf", locationID != "MontereyWharf")
 
 #monterey and sc have lots of na's, will drop
 na <- hab_occ_wq %>% group_by(locationID) %>% summarise_all(funs(sum(is.na(.))))
 
-<<<<<<< HEAD
 mapview(hab_occ_wq)
 
-=======
-
 #save processed dataframes
-write.csv(hab_events_processed, "Z:/O'Brien R script/CalHabMap_FishCSVI/Data/Processed/hab_events_processed.csv", row.names = FALSE)
-write.csv(hab_occ_processed, "Z:/O'Brien R script/CalHabMap_FishCSVI/Data/Processed/hab_occ_processed.csv", row.names = FALSE)
-write.csv(water_qual_processed, "Z:/O'Brien R script/CalHabMap_FishCSVI/Data/Processed/water_qual_processed.csv", row.names = FALSE)
-write.csv(hab_occ_wq, "Z:/O'Brien R script/CalHabMap_FishCSVI/Data/Processed/hab_occ_wq.csv", row.names = FALSE)
->>>>>>> 5424b5be4aad8083f9a6e64b0c9625edeb26cc29
+write.csv(hab_events_processed, "./Data/Processed/hab_events_processed.csv", row.names = FALSE)
+write.csv(hab_occ_processed, "./Data/Processed/hab_occ_processed.csv", row.names = FALSE)
+write.csv(water_qual_processed, "./Data/Processed/water_qual_processed.csv", row.names = FALSE)
+write.csv(hab_occ_wq, "./Data/Processed/hab_occ_wq.csv", row.names = FALSE)
+
 ```
 
-```{r}
+```{r CSVI}
 #CSVI data directly downloaded from NOAA NMFS Social Indicator Tool
 CSVI <- read_csv("./Data/socialIndicatorData.csv") %>% filter(State == "CA", Year == 2018) %>% rename("NAME" = "Community Name") %>% select(-c("Supporting Information", "Data Series", "Year", "State", "Region"))
 
 #save processed CSVI csv
-write.csv(CSVI, "Z:/O'Brien R script/CalHabMap_FishCSVI/Data/Processed/CSVI_processed.csv", row.names = FALSE)
+write.csv(CSVI, "./Data/Processed/CSVI_processed.csv", row.names = FALSE)
 
 # use tigris package to extrac shpfiles for CA "06" for year 2018
 CA_places <- places(state="06", cb = T, year = "2018") %>% filter(NAME %in% CSVI$NAME) %>% select(NAME, geometry)
@@ -130,162 +127,40 @@ mapview(county_data, zcol = "Commercial Engagement Categorical Ranking") + mapvi
 
 
 ```{r prelim data analysis}
+df_habs <- st_drop_geometry(hab_occ_wq) %>% mutate(month = month(eventDate), year = year(eventDate))
 
-species_labs <- paste0(c("akashi", "alex", "dino", "ling", "pn_del", "pn_ser"), "_c_L")
+species_labs <- paste0(c("alex", "pn_ser"), "_c_L")
 
 u_m <- paste0(c("NH4", "NO3", "NO2", "PO4", "SiO3"), "_u_M")
+colnames(df_habs) <-  append(append(append(c("location", "sample_id"), species_labs), append(u_m, c("T_C", "date"))), c("month", "year"))
 
-df_habs <- st_drop_geometry(hab_occ_wq)
-
-colnames(df_habs) <-  append(append(c("location", "sample_id"), species_labs), append(u_m, c("T_C", "date")))
 
 summary(df_habs)
 
-plot(df_habs)
+df_habs_interp <- df_habs %>% group_by(location) %>% 
+  mutate(alex = na.approx(alex_c_L, na.rm  = F),
+         pn = na.approx(pn_ser_c_L, na.rm  = F),
+         NH4 = na.approx(NH4_u_M, na.rm  = F), 
+         NO3 = na.approx(NO3_u_M , na.rm  = F),
+         NO2 = na.approx(NO2_u_M, na.rm  = F),
+         PO4 = na.approx(PO4_u_M, na.rm  = F),
+         SiO3 = na.approx(SiO3_u_M, na.rm  = F)) %>% drop_na()
 
-#hard to tell algae data based on daily measurements, I suggest we re-think HAB's. Since HABs are "rare" events, a Poisson distribution may be a better tool for measuring the frequency of HAB events or the "number of days" that correspond to a HAB event
-```
-```{r monthly means and counts}
-df_habs2 <- df_habs %>%
-  mutate(akashi_hab = ifelse(akashi_c_L > quantile(akashi_c_L, 0.75,na.rm=TRUE), 1, 0),
-         alex_hab = ifelse(alex_c_L > quantile(alex_c_L, 0.75,na.rm=TRUE), 1, 0),
-         dino_hab = ifelse(dino_c_L > quantile(dino_c_L, 0.75,na.rm=TRUE), 1, 0),
-         ling_hab = ifelse(ling_c_L > quantile(ling_c_L, 0.75,na.rm=TRUE), 1, 0),
-         pn_del_hab = ifelse(pn_del_c_L > quantile(pn_del_c_L, 0.75,na.rm=TRUE), 1, 0),
-         pn_ser_hab = ifelse(pn_ser_c_L > quantile(pn_ser_c_L, 0.75,na.rm=TRUE), 1, 0),
-         year_month = ym(paste(year(date), month(date))), 
-         year= as.factor(year(date)),
-         month = as.factor(month(date))) %>%
-  group_by(location, year_month, year, month) %>%
-  summarise(mean_T_C = mean(T_C, na.rm=TRUE), 
-            akashi_month = sum(akashi_hab, na.rm=TRUE),
-            alex_month = sum(alex_hab, na.rm=TRUE), 
-            dino_month = sum(dino_hab, na.rm=TRUE), 
-            ling_month = sum(ling_hab, na.rm=TRUE), 
-            pn_del_month = sum(pn_del_hab, na.rm=TRUE), 
-            pn_ser_month = sum(pn_ser_hab, na.rm=TRUE),
-            NH4_u_M = mean(NH4_u_M, na.rm=TRUE),
-            NO3_u_M = mean(NO3_u_M, na.rm=TRUE),
-            NO2_u_M = mean(NO2_u_M, na.rm=TRUE),
-            PO4_u_M = mean(PO4_u_M, na.rm=TRUE),
-            SiO3_u_M = mean(SiO3_u_M, na.rm=TRUE)
-            ) %>% 
-  ungroup()
+sst <- ggplot(df_habs, aes(x = date, color = location)) + geom_line(aes(y = T_C)) + labs(title = "SST over Time", y ="Temperature (C)", x = "Date", color = "Location")
+pn <- ggplot(df_habs, aes(x = date, color = location)) + geom_line(aes(y = pn_ser_c_L)) + labs(title = "P. seriata over Time", y ="Concentration (uM)", x = "Date", color = "Location")
+alex <- ggplot(df_habs, aes(x = date, color = location)) + geom_line(aes(y = alex_c_L)) + labs(title = "Alexandrium over Time", y ="Concentration (uM)", x = "Date", color = "Location")
 
-plot(df_habs2)
-
-ggplot(df_habs2, aes(x = year_month)) + geom_line(aes(y = mean_T_C, color = location)) + geom_smooth(data = df_habs2, aes(y = mean_T_C, method = 'lm'))
 
 ```
+
 ```{r}
 
-#look at one one species across locations for now, then build up from that if we can (maybe write a function to run the ggplot and summaries) (pseudo-nitzchia most common in CA and affects fisheries. Source: https://www.opc.ca.gov/programs-summary/marine-pollution/hab/)
+lm_pn <- lm(data = df_habs, pn_ser_c_L ~ . - location - sample_id)
 
-pn_habs <- filter(df_habs2) %>% 
-  select(-c((ends_with("_month") &
-              !starts_with("pn")) &
-              !starts_with("year_"))) %>%
-  mutate_at(vars(-year_month, -year, -month),~ifelse(is.nan(.), NA, .))
-
-#create functions for iterations: na_df counts the number of NA's in each column, pn_wq_plot creates ggplot of PN concentrations & water quality measuremnts over time, pn_sst_plot creates ggplot of PN concentrations & sea surface temperature over time, glm_poiss creates glm of pn concentrations (either ser or del groups) aginst variables for water quality, sea surface temperature, year-month, and location for pn_ser and pn_del groups (separately)
-
-na_df <- function(df) {
-  na_counts <- df %>% group_by(location) %>% summarise_all(funs(sum(is.na(.))))
-  return(na_counts)
-}
-
-pn_wq_plot <- function(df) {
-  
-  wq_plot <- ggplot(df, aes(x = year_month)) + 
-  geom_line(aes(y = NH4_u_M, color  = "NH4"), color = "green", linetype = 2) + 
-  geom_line(aes(y = NO3_u_M, color  = "NOx"), color = "blue", linetype = 2) + 
-  geom_line(aes(y = NO2_u_M, color  = "NOx"), color = "blue", linetype = 2) + 
-  geom_line(aes(y = PO4_u_M, color  = "PO4"), color = "pink", linetype = 2) + 
-  geom_line(aes(y = SiO3_u_M, color  = "SiO4)"), color = "red", linetype = 2) +
-  geom_point(aes(y = pn_del_month * 5), color = "black", shape = 15) +
-  geom_point(aes(y = pn_ser_month * 5), color = "blue",  shape = 17) +
-  scale_y_continuous(
-    name = "Water Quality u/M",
-    sec.axis = sec_axis(~./10, name = "HAB Events"),
-    limits = c(0.01, 45)
-  )
-  
-  return(wq_plot)
-}
-
-pn_sst_plot <- function(df) {
-  
-  sst_plot <- ggplot(df, aes(x = year_month)) + 
-  geom_line(aes(y = mean_T_C), color = 'red')  +
-  geom_line(aes(y = pn_del_month + 11), color = "black") +
-  geom_line(aes(y = pn_ser_month + 11), color = "blue") +
-  scale_y_continuous(
-    name = "Temperature (C)",
-    sec.axis = sec_axis(~.- 11, name = "HAB Events"),
-    limits = c(11.0, 20)
-  )
-  
-  return(sst_plot)
-  
-}
-
-glm_poiss_pn_del <- function(df) {
-  
-  glm <- glm(data = na.omit(df), pn_del_month ~ mean_T_C + NH4_u_M + NO3_u_M + NO2_u_M + PO4_u_M + SiO3_u_M + year + month, family = poisson)
-  
-  glm_f <- step(glm, .direction = "both")
-  
-  return(glm_f)
-  
-}
-
-glm_poiss_pn_ser <- function(df) {
-  
-  glm <- glm(data = na.omit(df), pn_ser_month ~ mean_T_C + NH4_u_M + NO3_u_M + NO2_u_M + PO4_u_M + SiO3_u_M + year + month, family = poisson)
-  
-  glm_f <- step(glm, .direction = "both")
-  
-  return(glm_f)
-  
-}
-
+step(lm_pn)
 ```
-```{r}
 
-#look at one city and one species for now, then build up from that if we can (maybe write a function to run the ggplot and summaries)
-
-lox <- unique(locs[order(locs$latitude),]$locationID)[1:5]
-
-wq_plot <- c()
-sst_plot <- c()
-glm_del <- c()
-glm_ser <- c()
-
-for (i in seq(length(lox))) {
-
-  df <- assign(paste0(lox[i], "_pn_habs"), pn_habs %>% filter(location == lox[i]))
-  wq_plot[[i]] <- assign(paste0(i,"_pn_wq_plot"), pn_wq_plot(df))
-  sst_plot[[i]] <- assign(paste0(i,"_pn_sst_plot"), pn_sst_plot(df))
-  glm_del[[i]] <- assign(paste0(i,"_glm_poiss_pn_del"), summary(glm_poiss_pn_del(df)))
-  glm_ser[[i]] <- assign(paste0(i,"_glm_poiss_pn_ser"), summary(glm_poiss_pn_ser(df)))
-  
-}
-
-pn_wq_plot(pn_habs)
-pn_sst_plot(pn_habs)
-
-glm_poiss_pn_del(pn_habs)
-glm_poiss_pn_ser(pn_habs)
-
-<<<<<<< HEAD
-plot_grid(plotlist = wq_plot[1:3], nrow = 3, labels = lox )
-plot_grid(plotlist = sst_plot[1:3], nrow = 3, labels = lox )
-
-
-```
 =======
-```
-
 
 ```{r Alexandrium in Newport Pier: time series and AIC}
 #specify location
@@ -368,8 +243,6 @@ Alexandrium.Newport.regression <- lm(data = Alexandrium.Newport.AIC.df, Interpol
 summary(Alexandrium.Newport.regression)
 ```
 
-
-
 ```{r Alexandrium in San Luis Obispo: time series and AIC}
 #specify location
 CalPoly <- hab_occ_wq %>%
@@ -450,8 +323,6 @@ step(Alexandrium.CalPoly.AIC)
 Alexandrium.CalPoly.multiple.regression <- lm(data = Alexandrium.CalPoly.AIC.df, InterpolatedAlexandrium ~ `Nitrate ( uM )` + `Phosphate ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
 summary(Alexandrium.CalPoly.multiple.regression )
 ```
-
-
 
 ```{r Alexandrium in Santa Monica: time series and AIC}
 #specify location
@@ -615,7 +486,6 @@ Alexandrium.SanDiego.regression <- lm(data = Alexandrium.SanDiego.AIC.df, Interp
 summary(Alexandrium.SanDiego.regression)
 ```
 
-
 ```{r Alexandrium in Santa Barbara: time series and AIC}
 #specify location
 SantaBarbara <- hab_occ_wq %>%
@@ -696,7 +566,6 @@ step(Alexandrium.SantaBarbara.AIC)
 Alexandrium.SantaBarbara.multiple.regression <- lm(data = Alexandrium.SanDiego.AIC.df, InterpolatedAlexandrium ~ `Nitrite ( uM )` + `Phosphate ( uM )`)
 summary(Alexandrium.SantaBarbara.multiple.regression)
 ```
-
 
 ```{r Pseudo-nitzschia seriata in San Luis Obispo: time series and AIC}
 #specify location
@@ -779,7 +648,6 @@ Seriata.CalPoly.regression <- lm(data = Seriata.CalPoly.AIC.df, InterpolatedSeri
 summary(Seriata.CalPoly.regression)
 ```
 
-
 ```{r Pseudo-nitzschia seriata in Santa Monica: time series and AIC}
 #specify location
 SantaMonica <- hab_occ_wq %>%
@@ -861,7 +729,6 @@ step(Seriata.SantaMonica.AIC)
 Seriata.SantaMonica.multiple.regression <- lm(data = Seriata.SantaMonica.AIC.df, InterpolatedSeriata ~ `Ammonium ( uM )` + `Nitrate ( uM )` + `Nitrite ( uM )` + `Silicate ( uM )`)
 summary(Seriata.SantaMonica.multiple.regression)
 ```
-
 
 ```{r Pseudo-nitzschia seriata in San Diego: time series and AIC}
 #specify location
@@ -1027,7 +894,6 @@ Seriata.Newport.multiple.regression <- lm(data = Seriata.Newport.AIC.df, Interpo
 summary(Seriata.Newport.multiple.regression)
 ```
 
-
 ```{r Pseudo-nitzschia seriata in Santa Barbara: time series and AIC}
 #specify location
 SantaBarbara <- hab_occ_wq %>%
@@ -1110,7 +976,6 @@ summary(Seriata.SantaBarbara.multiple.regression)
 ```
 
 
-
 ```{r combining figures}
 #other code 
 sum(is.na(HAB_daily_df$`Dinophysis ( cells/L )`))
@@ -1127,4 +992,3 @@ combined.Seriata.plot <- plot_grid(Seriata.CalPoly.Monthly.Fig + theme(legend.po
 print(combined.Seriata.plot) 
 
 ```
->>>>>>> 5424b5be4aad8083f9a6e64b0c9625edeb26cc29
