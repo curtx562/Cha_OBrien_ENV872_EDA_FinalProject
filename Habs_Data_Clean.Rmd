@@ -15,7 +15,7 @@ getwd()
 # Load your packages
 knitr::opts_chunk$set(echo = TRUE)
 library(pacman)
-pacman::p_load(tidyverse, tigris, lubridate, sf, mapview, finch, cowplot, zoo, trend, data.table)
+pacman::p_load(tidyverse, tigris, lubridate, sf, mapview, finch, cowplot, zoo, trend, data.table, broom)
 
 # Set your ggplot theme
 mytheme <- theme_classic(base_size = 11) +
@@ -154,23 +154,6 @@ alex <- ggplot(df_habs_interp, aes(x = date, color = location)) + geom_line(aes(
 
 ```
 
-```{r lms SoCal}
-# create lms for pn and alex for whole SoCal region
-lm_pn <- step(lm(data = df_habs_interp %>% drop_na(), pn ~ . -alex-date))
-
-SC_pn_lm <- as.data.frame(tidy(lm_pn)) %>% 
-    select(term, estimate) %>% 
-    pivot_wider(names_from = term, values_from = estimate)
-
-lm_alex <- step(lm(data = df_habs_interp %>% drop_na(), alex ~ . -pn-date))
-
-SC_al_lm <- as.data.frame(tidy(lm_alex)) %>% 
-    select(term, estimate) %>% 
-    pivot_wider(names_from = term, values_from = estimate)
-
-#df of lm coefficients
-SC_lm <- bind_rows(SC_pn_lm, SC_al_lm)
-```
 ```{r glms cities}
 
 #create lms and plots of pn and alex [] for each city
@@ -196,6 +179,7 @@ for (i in seq(length(cities))) {
   alexs_plots[[i]] <- ggplot(df, aes(x = date, y = alex)) + geom_line() + geom_smooth(method = 'lm', se = F) + labs(title = "Alex. over Time", subtitle = cities[i], x = "Date", y = "Concentration (uM)")
   
 }
+
 #plots of pns and alexs for each city
 plot_grid(plotlist = pns_plots)
 plot_grid(plotlist = alexs_plots)
@@ -218,8 +202,12 @@ for (i in seq(length(cities))) {
 
 #dfs of pn lms coeffs and alex lm coeffs
 pn_lms <- cbind(cities, do.call(bind_rows, lm_pn_cities)) %>% select(-"(Intercept)")
+
+write.csv(pn_lms, "./Data/Output/PN_LM_Coefficients_Cities.csv")
+
 al_lms <- cbind(cities, do.call(bind_rows, lm_al_cities)) %>% select(-"(Intercept)")
 
+write.csv(al_lms, "./Data/Output/AL_LM_Coefficients_Cities.csv")
 ```
 
 =======
@@ -286,23 +274,22 @@ Alexandrium.Newport.monthly.MannKendall <- Kendall::SeasonalMannKendall(Alexandr
 summary(Alexandrium.Newport.monthly.MannKendall)
 
 #data visualization 
-ggplot(Alexandrium.Newport.Monthly, aes(x = `Date`, y = `MeanAlexandrium`)) +  
+Alex.Newport.Monthly.Fig <- ggplot(Alexandrium.Newport.Monthly, aes(x = `Date`, y = `MeanAlexandrium`)) +  
   geom_line() + 
   geom_smooth(method = lm) +
-  geom_hline(yintercept=10000) +
- labs(y = "Alexandrium Concentration (cells/L)", title = "Mean Monthly Alexandrium Concentrations:", 
-subtitle = "Newport Pier, California from 06/2008 to 08/2021")
+  geom_hline(yintercept=100) +
+ labs(y = "Concentration (cells/L)", subtitle = "Newport Pier 06/2008 - 08/2021")
 
 #AIC - begin by removing NAs
-Alexandrium.Newport.AIC.df <- Alexandrium.Newport.Interpolation %>%
-  drop_na("Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )", "Silicate ( uM )", "Temp ( Celsius )")
+#Alexandrium.Newport.AIC.df <- Alexandrium.Newport.Interpolation %>%
+#  drop_na("Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )", "Silicate ( uM )", "Temp ( Celsius )")
 
-Alexandrium.Newport.AIC <- lm(data = Alexandrium.Newport.AIC.df, InterpolatedAlexandrium ~ `Ammonium ( uM )` + `Nitrate ( uM )` + `Nitrite ( uM )` + `Phosphate ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
-step(Alexandrium.Newport.AIC)
+#Alexandrium.Newport.AIC <- lm(data = Alexandrium.Newport.AIC.df, InterpolatedAlexandrium ~ `Ammonium ( uM )` + `Nitrate ( uM )` + `Nitrite ( uM )` + `Phosphate ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
+#step(Alexandrium.Newport.AIC)
 
 #multiple regression
-Alexandrium.Newport.regression <- lm(data = Alexandrium.Newport.AIC.df, InterpolatedAlexandrium ~ `Phosphate ( uM )`)
-summary(Alexandrium.Newport.regression)
+#Alexandrium.Newport.regression <- lm(data = Alexandrium.Newport.AIC.df, InterpolatedAlexandrium ~ `Phosphate ( uM )`)
+#summary(Alexandrium.Newport.regression)
 ```
 
 ```{r Alexandrium in San Luis Obispo: time series and AIC}
@@ -367,23 +354,23 @@ Alexandrium.CalPoly.monthly.MannKendall <- Kendall::SeasonalMannKendall(Alexandr
 summary(Alexandrium.CalPoly.monthly.MannKendall)
 
 #data visualization 
-ggplot(Alexandrium.CalPoly.Monthly, aes(x = `Date`, y = `MeanAlexandrium`)) +  
+Alex.CalPoly.Monthly.Fig <- ggplot(Alexandrium.CalPoly.Monthly, aes(x = `Date`, y = `MeanAlexandrium`)) +  
   geom_line() + 
   geom_smooth(method = lm) +
   geom_hline(yintercept=100) +
- labs(y = "Concentration (cells/L)", title = "Mean Monthly Alexandrium Concentrations:", 
-subtitle = "San Luis Obispo, California from 08/2008 to 09/2021")
+labs(y = "Concentration (cells/L)", 
+subtitle = "San Luis Obispo 08/2008 - 09/2021")
 
 #AIC - begin by removing NAs
-Alexandrium.CalPoly.AIC.df <- Alexandrium.CalPoly.Interpolation %>%
-  drop_na("Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )", "Silicate ( uM )", "Temp ( Celsius )")
+#Alexandrium.CalPoly.AIC.df <- Alexandrium.CalPoly.Interpolation %>%
+#  drop_na("Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )", "Silicate ( uM )", "Temp ( Celsius )")
 
-Alexandrium.CalPoly.AIC <- lm(data = Alexandrium.CalPoly.AIC.df, InterpolatedAlexandrium ~ `Ammonium ( uM )` + `Nitrate ( uM )` + `Nitrite ( uM )` + `Phosphate ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
-step(Alexandrium.CalPoly.AIC)
+#Alexandrium.CalPoly.AIC <- lm(data = Alexandrium.CalPoly.AIC.df, InterpolatedAlexandrium ~ `Ammonium ( uM )` + `Nitrate ( uM )` + `Nitrite ( uM )` + `Phosphate ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
+#step(Alexandrium.CalPoly.AIC)
 
 #multiple regression
-Alexandrium.CalPoly.multiple.regression <- lm(data = Alexandrium.CalPoly.AIC.df, InterpolatedAlexandrium ~ `Nitrate ( uM )` + `Phosphate ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
-summary(Alexandrium.CalPoly.multiple.regression )
+#Alexandrium.CalPoly.multiple.regression <- lm(data = Alexandrium.CalPoly.AIC.df, InterpolatedAlexandrium ~ `Nitrate ( uM )` + `Phosphate ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
+#summary(Alexandrium.CalPoly.multiple.regression )
 ```
 
 ```{r Alexandrium in Santa Monica: time series and AIC}
@@ -448,23 +435,23 @@ Alexandrium.SantaMonica.monthly.MannKendall <- Kendall::SeasonalMannKendall(Alex
 summary(Alexandrium.SantaMonica.monthly.MannKendall)
 
 #data visualization 
-ggplot(Alexandrium.SantaMonica.Monthly, aes(x = `Date`, y = `MeanAlexandrium`)) +  
+Alex.SantaMonica.Monthly.Fig <- ggplot(Alexandrium.SantaMonica.Monthly, aes(x = `Date`, y = `MeanAlexandrium`)) +  
   geom_line() + 
   geom_smooth(method = lm) +
   geom_hline(yintercept=100) +
- labs(y = "Concentration (cells/L)", title = "Mean Monthly Alexandrium Concentrations:", 
-subtitle = "Santa Monica, California from 06/2008 to 08/2021")
+ labs(y = "Concentration (cells/L)",
+subtitle = "Santa Monica 06/2008 - 08/2021")
 
 #AIC - begin by removing NAs
-Alexandrium.SantaMonica.AIC.df <- Alexandrium.SantaMonica.Interpolation %>%
-  drop_na("Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )", "Silicate ( uM )", "Temp ( Celsius )")
+#Alexandrium.SantaMonica.AIC.df <- Alexandrium.SantaMonica.Interpolation %>%
+#  drop_na("Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )", "Silicate ( uM )", "Temp ( Celsius )")
 
-Alexandrium.SantaMonica.AIC <- lm(data = Alexandrium.SantaMonica.AIC.df, InterpolatedAlexandrium ~ `Ammonium ( uM )` + `Nitrate ( uM )` + `Nitrite ( uM )` + `Phosphate ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
-step(Alexandrium.SantaMonica.AIC)
+#Alexandrium.SantaMonica.AIC <- lm(data = Alexandrium.SantaMonica.AIC.df, InterpolatedAlexandrium ~ `Ammonium ( uM )` + `Nitrate ( uM )` + `Nitrite ( uM )` + `Phosphate ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
+#step(Alexandrium.SantaMonica.AIC)
 
 #multiple regression
-Alexandrium.SantaMonica.regression <- lm(data = Alexandrium.SantaMonica.AIC.df, InterpolatedAlexandrium ~ `Silicate ( uM )`)
-summary(Alexandrium.SantaMonica.regression)
+#Alexandrium.SantaMonica.regression <- lm(data = Alexandrium.SantaMonica.AIC.df, InterpolatedAlexandrium ~ `Silicate ( uM )`)
+#summary(Alexandrium.SantaMonica.regression)
 ```
 
 ```{r Alexandrium in San Diego: time series and AIC}
@@ -529,23 +516,23 @@ Alexandrium.SanDiego.monthly.MannKendall <- Kendall::SeasonalMannKendall(Alexand
 summary(Alexandrium.SanDiego.monthly.MannKendall)
 
 #data visualization 
-ggplot(Alexandrium.SanDiego.Monthly, aes(x = `Date`, y = `MeanAlexandrium`)) +  
+Alex.SanDiego.Monthly.Fig <- ggplot(Alexandrium.SanDiego.Monthly, aes(x = `Date`, y = `MeanAlexandrium`)) +  
   geom_line() + 
   geom_smooth(method = lm) +
   geom_hline(yintercept=100) +
- labs(y = "Concentration (cells/L)", title = "Mean Monthly Alexandrium Concentrations:", 
-subtitle = "San Diego, California from 01/2011 to 03/2020")
+ labs(y = "Concentration (cells/L)",
+subtitle = "San Diego 01/2011 - 03/2020")
 
 #AIC - begin by removing NAs
-Alexandrium.SanDiego.AIC.df <- Alexandrium.SanDiego.Interpolation %>%
-  drop_na("Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )", "Silicate ( uM )", "Temp ( Celsius )")
+#Alexandrium.SanDiego.AIC.df <- Alexandrium.SanDiego.Interpolation %>%
+#  drop_na("Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )", "Silicate ( uM )", "Temp ( Celsius )")
 
-Alexandrium.SanDiego.AIC <- lm(data = Alexandrium.SanDiego.AIC.df, InterpolatedAlexandrium ~ `Ammonium ( uM )` + `Nitrate ( uM )` + `Nitrite ( uM )` + `Phosphate ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
-step(Alexandrium.SanDiego.AIC)
+#Alexandrium.SanDiego.AIC <- lm(data = Alexandrium.SanDiego.AIC.df, InterpolatedAlexandrium ~ `Ammonium ( uM )` + `Nitrate ( uM )` + `Nitrite ( uM )` + `Phosphate ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
+#step(Alexandrium.SanDiego.AIC)
 
 #regression
-Alexandrium.SanDiego.regression <- lm(data = Alexandrium.SanDiego.AIC.df, InterpolatedAlexandrium ~ `Temp ( Celsius )`)
-summary(Alexandrium.SanDiego.regression)
+#Alexandrium.SanDiego.regression <- lm(data = Alexandrium.SanDiego.AIC.df, InterpolatedAlexandrium ~ `Temp ( Celsius )`)
+#summary(Alexandrium.SanDiego.regression)
 ```
 
 ```{r Alexandrium in Santa Barbara: time series and AIC}
@@ -610,23 +597,23 @@ Alexandrium.SantaBarbara.monthly.MannKendall <- Kendall::SeasonalMannKendall(Ale
 summary(Alexandrium.SantaBarbara.monthly.MannKendall)
 
 #data visualization 
-ggplot(Alexandrium.SantaBarbara.Monthly, aes(x = `Date`, y = `MeanAlexandrium`)) +  
+Alex.SantaBarbara.Monthly.Fig <- ggplot(Alexandrium.SantaBarbara.Monthly, aes(x = `Date`, y = `MeanAlexandrium`)) +  
   geom_line() + 
   geom_smooth(method = lm) +
   geom_hline(yintercept=100) +
- labs(y = "Concentration (cells/L)", title = "Mean Monthly Alexandrium Concentrations:", 
-subtitle = "Santa Barbara, California from 06/2008 to 07/2021")
+ labs(y = "Concentration (cells/L)",
+subtitle = "Santa Barbara 06/2008 - 07/2021")
 
 #AIC - begin by removing NAs
-Alexandrium.SantaBarbara.AIC.df <- Alexandrium.SantaBarbara.Interpolation %>%
-  drop_na("Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )", "Silicate ( uM )", "Temp ( Celsius )")
+#Alexandrium.SantaBarbara.AIC.df <- Alexandrium.SantaBarbara.Interpolation %>%
+#  drop_na("Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )", "Silicate ( uM )", "Temp ( Celsius )")
 
-Alexandrium.SantaBarbara.AIC <- lm(data = Alexandrium.SantaBarbara.AIC.df, InterpolatedAlexandrium ~ `Ammonium ( uM )` + `Nitrate ( uM )` + `Nitrite ( uM )` + `Phosphate ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
-step(Alexandrium.SantaBarbara.AIC)
+#Alexandrium.SantaBarbara.AIC <- lm(data = Alexandrium.SantaBarbara.AIC.df, InterpolatedAlexandrium ~ `Ammonium ( uM )` + `Nitrate ( uM )` + `Nitrite ( uM )` + `Phosphate ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
+#step(Alexandrium.SantaBarbara.AIC)
 
 #regression
-Alexandrium.SantaBarbara.multiple.regression <- lm(data = Alexandrium.SanDiego.AIC.df, InterpolatedAlexandrium ~ `Nitrite ( uM )` + `Phosphate ( uM )`)
-summary(Alexandrium.SantaBarbara.multiple.regression)
+#Alexandrium.SantaBarbara.multiple.regression <- lm(data = Alexandrium.SanDiego.AIC.df, InterpolatedAlexandrium ~ `Nitrite ( uM )` + `Phosphate ( uM )`)
+#summary(Alexandrium.SantaBarbara.multiple.regression)
 ```
 
 ```{r Pseudo-nitzschia seriata in San Luis Obispo: time series and AIC}
@@ -694,20 +681,20 @@ Seriata.CalPoly.Monthly.Fig <- ggplot(Seriata.CalPoly.Monthly, aes(x = `Date`, y
   geom_line() + 
   geom_smooth(method = lm) +
   geom_hline(yintercept=10000) +
- labs(y = "Concentration (cells/L)", title = "Mean Monthly Pseudo-nitzschia Concentrations:", 
-subtitle = "San Luis Obispo, California from 08/2008 to 09/2021")
-print(Seriata.CalPoly.Monthly.Fig)
+ labs(y = "Concentration (cells/L)", 
+subtitle = "San Luis Obispo 8/2008 - 09/2021")
+#print(Seriata.CalPoly.Monthly.Fig)
 
 #AIC - begin by removing NAs
-Seriata.CalPoly.AIC.df <- Seriata.CalPoly.Interpolation %>%
-  drop_na("Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )", "Silicate ( uM )", "Temp ( Celsius )")
+#Seriata.CalPoly.AIC.df <- Seriata.CalPoly.Interpolation %>%
+#  drop_na("Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )", "Silicate ( uM )", "Temp ( Celsius )")
 
-Seriata.CalPoly.AIC <- lm(data = Seriata.CalPoly.AIC.df, InterpolatedSeriata ~ `Ammonium ( uM )` + `Nitrate ( uM )` + `Nitrite ( uM )` + `Phosphate ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
-step(Seriata.CalPoly.AIC)
+#Seriata.CalPoly.AIC <- lm(data = Seriata.CalPoly.AIC.df, InterpolatedSeriata ~ `Ammonium ( uM )` + `Nitrate ( uM )` + `Nitrite ( uM )` + `Phosphate ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
+#step(Seriata.CalPoly.AIC)
 
 #multiple regression
-Seriata.CalPoly.regression <- lm(data = Seriata.CalPoly.AIC.df, InterpolatedSeriata~ `Silicate ( uM )`)
-summary(Seriata.CalPoly.regression)
+#Seriata.CalPoly.regression <- lm(data = Seriata.CalPoly.AIC.df, InterpolatedSeriata~ `Silicate ( uM )`)
+#summary(Seriata.CalPoly.regression)
 ```
 
 ```{r Pseudo-nitzschia seriata in Santa Monica: time series and AIC}
@@ -776,20 +763,20 @@ Seriata.SantaMonica.Monthly.Fig <- ggplot(Seriata.SantaMonica.Monthly, aes(x = `
   geom_line() + 
   geom_smooth(method = lm) +
   geom_hline(yintercept=10000) +
- labs(y = "Concentration (cells/L)", title = "Mean Monthly Pseudo-nitzschia Concentrations:", 
-subtitle = "Santa Monica, California from 06/2008 to 08/2021")
-print(Seriata.SantaMonica.Monthly.Fig)
+ labs(y = "Concentration (cells/L)",
+subtitle = "Santa Monica 06/2008 - 08/2021")
+#print(Seriata.SantaMonica.Monthly.Fig)
 
 #AIC - begin by removing NAs
-Seriata.SantaMonica.AIC.df <- Seriata.SantaMonica.Interpolation %>%
-  drop_na("Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )", "Silicate ( uM )", "Temp ( Celsius )")
+#Seriata.SantaMonica.AIC.df <- Seriata.SantaMonica.Interpolation %>%
+#  drop_na("Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )", "Silicate ( uM )", "Temp ( Celsius )")
 
-Seriata.SantaMonica.AIC <- lm(data = Seriata.SantaMonica.AIC.df, InterpolatedSeriata ~ `Ammonium ( uM )` + `Nitrate ( uM )` + `Nitrite ( uM )` + `Phosphate ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
-step(Seriata.SantaMonica.AIC)
+#Seriata.SantaMonica.AIC <- lm(data = Seriata.SantaMonica.AIC.df, InterpolatedSeriata ~ `Ammonium ( uM )` + `Nitrate ( uM )` + `Nitrite ( uM )` + `Phosphate ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
+#step(Seriata.SantaMonica.AIC)
 
 #multiple regression
-Seriata.SantaMonica.multiple.regression <- lm(data = Seriata.SantaMonica.AIC.df, InterpolatedSeriata ~ `Ammonium ( uM )` + `Nitrate ( uM )` + `Nitrite ( uM )` + `Silicate ( uM )`)
-summary(Seriata.SantaMonica.multiple.regression)
+#Seriata.SantaMonica.multiple.regression <- lm(data = Seriata.SantaMonica.AIC.df, InterpolatedSeriata ~ `Ammonium ( uM )` + `Nitrate ( uM )` + `Nitrite ( uM )` + `Silicate ( uM )`)
+#summary(Seriata.SantaMonica.multiple.regression)
 ```
 
 ```{r Pseudo-nitzschia seriata in San Diego: time series and AIC}
@@ -858,20 +845,20 @@ Seriata.SanDiego.Monthly.Fig <- ggplot(Seriata.SanDiego.Monthly, aes(x = `Date`,
   geom_line() + 
   geom_smooth(method = lm) +
   geom_hline(yintercept=10000) +
- labs(y = "Concentration (cells/L)", title = "Mean Monthly Pseudo-nitzschia Concentrations:", 
-subtitle = "San Diego, California from 01/2011 to 03/2020")
-print(Seriata.SanDiego.Monthly.Fig)
+ labs(y = "Concentration (cells/L)", 
+subtitle = "San Diego 01/2011 - 03/2020")
+#print(Seriata.SanDiego.Monthly.Fig)
 
 #AIC - begin by removing NAs
-Seriata.SanDiego.AIC.df <- Seriata.SanDiego.Interpolation %>%
-  drop_na("Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )", "Silicate ( uM )", "Temp ( Celsius )")
+#Seriata.SanDiego.AIC.df <- Seriata.SanDiego.Interpolation %>%
+#  drop_na("Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )", "Silicate ( uM )", "Temp ( Celsius )")
 
-Seriata.SanDiego.AIC <- lm(data = Seriata.SanDiego.AIC.df, InterpolatedSeriata ~ `Ammonium ( uM )` + `Nitrate ( uM )` + `Nitrite ( uM )` + `Phosphate ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
-step(Seriata.SanDiego.AIC)
+#Seriata.SanDiego.AIC <- lm(data = Seriata.SanDiego.AIC.df, InterpolatedSeriata ~ `Ammonium ( uM )` + `Nitrate ( uM )` + `Nitrite ( uM )` + `Phosphate ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
+#step(Seriata.SanDiego.AIC)
 
 #multiple regression
-Seriata.SanDiego.multiple.regression <- lm(data = Seriata.SanDiego.AIC.df, InterpolatedSeriata ~ `Nitrate ( uM )` + `Temp ( Celsius )` + `Silicate ( uM )`)
-summary(Seriata.SanDiego.multiple.regression)
+#Seriata.SanDiego.multiple.regression <- lm(data = Seriata.SanDiego.AIC.df, InterpolatedSeriata ~ `Nitrate ( uM )` + `Temp ( Celsius )` + `Silicate ( uM )`)
+#summary(Seriata.SanDiego.multiple.regression)
 ```
 
 ```{r Pseudo-nitzschia seriata in Newport: time series and AIC}
@@ -940,20 +927,20 @@ Seriata.Newport.Monthly.Fig <- ggplot(Seriata.Newport.Monthly, aes(x = `Date`, y
   geom_line() + 
   geom_smooth(method = lm) +
   geom_hline(yintercept=10000) +
- labs(y = "Concentration (cells/L)", title = "Mean Monthly Pseudo-nitzschia Concentrations:", 
-subtitle = "Newport, California from 06/2008 to 08/2021")
-print(Seriata.Newport.Monthly.Fig)
+labs(y = "Concentration (cells/L)",
+subtitle = "Newport 06/2008 - 08/2021")
+#print(Seriata.Newport.Monthly.Fig)
 
 #AIC - begin by removing NAs
-Seriata.Newport.AIC.df <- Seriata.Newport.Interpolation %>%
-  drop_na("Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )", "Silicate ( uM )", "Temp ( Celsius )")
+#Seriata.Newport.AIC.df <- Seriata.Newport.Interpolation %>%
+#  drop_na("Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )", "Silicate ( uM )", "Temp ( Celsius )")
 
-Seriata.Newport.AIC <- lm(data = Seriata.Newport.AIC.df, InterpolatedSeriata ~ `Ammonium ( uM )` + `Nitrate ( uM )` + `Nitrite ( uM )` + `Phosphate ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
-step(Seriata.Newport.AIC)
+#Seriata.Newport.AIC <- lm(data = Seriata.Newport.AIC.df, InterpolatedSeriata ~ `Ammonium ( uM )` + `Nitrate ( uM )` + `Nitrite ( uM )` + `Phosphate ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
+#step(Seriata.Newport.AIC)
 
 #multiple regression
-Seriata.Newport.multiple.regression <- lm(data = Seriata.Newport.AIC.df, InterpolatedSeriata ~ `Nitrate ( uM )` + `Nitrite ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
-summary(Seriata.Newport.multiple.regression)
+#Seriata.Newport.multiple.regression <- lm(data = Seriata.Newport.AIC.df, InterpolatedSeriata ~ `Nitrate ( uM )` + `Nitrite ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
+#summary(Seriata.Newport.multiple.regression)
 ```
 
 ```{r Pseudo-nitzschia seriata in Santa Barbara: time series and AIC}
@@ -1021,36 +1008,63 @@ Seriata.SantaBarbara.Monthly.Fig <- ggplot(Seriata.SantaBarbara.Monthly, aes(x =
   geom_line() + 
   geom_smooth(method = lm) +
   geom_hline(yintercept=10000) +
- labs(y = "Concentration (cells/L)", title = "Mean Monthly Pseudo-nitzschia Concentrations:", 
-subtitle = "Santa Barbara, CA from 06/2008 to 07/2021")
-print(Seriata.SantaBarbara.Monthly.Fig)
+ labs(y = "Concentration (cells/L)",
+subtitle = "Santa Barbara 06/2008 - 07/2021")
+#print(Seriata.SantaBarbara.Monthly.Fig)
 
 #AIC - begin by removing NAs
-Seriata.SantaBarbara.AIC.df <- Seriata.SantaBarbara.Interpolation %>%
-  drop_na("Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )", "Silicate ( uM )", "Temp ( Celsius )")
+#Seriata.SantaBarbara.AIC.df <- Seriata.SantaBarbara.Interpolation %>%
+#  drop_na("Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )", "Silicate ( uM )", "Temp ( Celsius )")
 
-Seriata.SantaBarbara.AIC <- lm(data = Seriata.SantaBarbara.AIC.df, InterpolatedSeriata ~ `Ammonium ( uM )` + `Nitrate ( uM )` + `Nitrite ( uM )` + `Phosphate ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
-step(Seriata.SantaBarbara.AIC)
+#Seriata.SantaBarbara.AIC <- lm(data = Seriata.SantaBarbara.AIC.df, InterpolatedSeriata ~ `Ammonium ( uM )` + `Nitrate ( uM )` + `Nitrite ( uM )` + `Phosphate ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
+#step(Seriata.SantaBarbara.AIC)
 
 #multiple regression
-Seriata.SantaBarbara.multiple.regression <- lm(data = Seriata.SantaBarbara.AIC.df, InterpolatedSeriata ~ `Nitrate ( uM )` + `Nitrite ( uM )` + `Silicate ( uM )` + `Phosphate ( uM )`)
-summary(Seriata.SantaBarbara.multiple.regression)
+#Seriata.SantaBarbara.multiple.regression <- lm(data = Seriata.SantaBarbara.AIC.df, InterpolatedSeriata ~ `Nitrate ( uM )` + `Nitrite ( uM )` + `Silicate ( uM )` + `Phosphate ( uM )`)
+#summary(Seriata.SantaBarbara.multiple.regression)
 ```
-
 
 ```{r combining figures}
 #other code 
-sum(is.na(HAB_daily_df$`Dinophysis ( cells/L )`))
-dim(HAB_daily_df)
+#sum(is.na(HAB_daily_df$`Dinophysis ( cells/L )`))
+#dim(HAB_daily_df)
+
+title_pn <- ggdraw() + 
+  draw_label(
+    "Mean Monthly Pseudo-nitzschia Concentrations",
+    fontface = 'bold',
+    x = 0,
+    hjust = 0
+  ) +
+  theme(
+    plot.margin = margin(0, 0, 0, 7)
+  )
 
 #cowplot
-combined.Seriata.plot <- plot_grid(Seriata.CalPoly.Monthly.Fig + theme(legend.position = "none"), 
+PN.Monthly.Fig <- plot_grid(Seriata.CalPoly.Monthly.Fig + theme(legend.position = "none"), 
                          Seriata.SantaBarbara.Monthly.Fig + theme(legend.position = "none"), 
                          Seriata.SantaMonica.Monthly.Fig + theme(legend.position = "none"), 
                          Seriata.Newport.Monthly.Fig + theme(legend.position = "none"),
                          Seriata.SanDiego.Monthly.Fig + theme(legend.position = "none"),
                          nrow = 2, align = "vh", axis = "btl")
 
-print(combined.Seriata.plot) 
+plot_grid(title_pn, PN.Monthly.Fig, ncol = 1, rel_heights = c(0.1, 1))
 
+AL.Monthly.Fig <- plot_grid(Alex.CalPoly.Monthly.Fig + theme(legend.position = "none"), 
+                         Alex.SantaBarbara.Monthly.Fig + theme(legend.position = "none"), 
+                         Alex.SantaMonica.Monthly.Fig + theme(legend.position = "none"), 
+                         Alex.Newport.Monthly.Fig + theme(legend.position = "none"),
+                         Alex.SanDiego.Monthly.Fig + theme(legend.position = "none"),
+                         nrow = 2, align = "vh", axis = "btl")
+title_al <- ggdraw() + 
+  draw_label(
+    "Mean Monthly Alexandrium Concentrations",
+    fontface = 'bold',
+    x = 0,
+    hjust = 0
+  ) +
+  theme(
+    plot.margin = margin(0, 0, 0, 7)
+  )
+plot_grid(title_al, AL.Monthly.Fig, ncol = 1, rel_heights = c(0.1, 1))
 ```
