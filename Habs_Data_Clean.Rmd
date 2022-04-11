@@ -127,37 +127,59 @@ mapview(county_data, zcol = "Commercial Engagement Categorical Ranking") + mapvi
 
 
 ```{r prelim data analysis}
-df_habs <- st_drop_geometry(hab_occ_wq) %>% mutate(month = month(eventDate), year = year(eventDate))
+df_habs <- st_drop_geometry(hab_occ_wq) %>% 
+  mutate(month = month(eventDate), year = year(eventDate)) %>% 
+  select(eventDate, locationID, "Alexandrium ( cells/L )", "Pseudo-nitzschia seriata ( cells/L )", "Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )" , "Silicate ( uM )" , "Temp ( Celsius )", "month", "year")
 
-species_labs <- paste0(c("alex", "pn_ser"), "_c_L")
-
-u_m <- paste0(c("NH4", "NO3", "NO2", "PO4", "SiO3"), "_u_M")
-colnames(df_habs) <-  append(append(append(c("location", "sample_id"), species_labs), append(u_m, c("T_C", "date"))), c("month", "year"))
-
+colnames(df_habs) <- c("date", "location", "alex", "pn", "nh4", "no3", "no2", "po4" , "sio3" , "temp", "month", "year")
 
 summary(df_habs)
 
 df_habs_interp <- df_habs %>% group_by(location) %>% 
-  mutate(alex = na.approx(alex_c_L, na.rm  = F),
-         pn = na.approx(pn_ser_c_L, na.rm  = F),
-         NH4 = na.approx(NH4_u_M, na.rm  = F), 
-         NO3 = na.approx(NO3_u_M , na.rm  = F),
-         NO2 = na.approx(NO2_u_M, na.rm  = F),
-         PO4 = na.approx(PO4_u_M, na.rm  = F),
-         SiO3 = na.approx(SiO3_u_M, na.rm  = F)) %>% drop_na()
+  mutate(temp = na.approx(temp, na.rm  = F), 
+         alex = na.approx(alex, na.rm  = F),
+         pn = na.approx(pn, na.rm  = F),
+         nh4 = na.approx(nh4, na.rm  = F), 
+         no3 = na.approx(no3, na.rm  = F),
+         no2 = na.approx(no2, na.rm  = F),
+         po4 = na.approx(po4, na.rm  = F),
+         sio3 = na.approx(sio3, na.rm  = F)
+         )
 
-sst <- ggplot(df_habs, aes(x = date, color = location)) + geom_line(aes(y = T_C)) + labs(title = "SST over Time", y ="Temperature (C)", x = "Date", color = "Location")
-pn <- ggplot(df_habs, aes(x = date, color = location)) + geom_line(aes(y = pn_ser_c_L)) + labs(title = "P. seriata over Time", y ="Concentration (uM)", x = "Date", color = "Location")
-alex <- ggplot(df_habs, aes(x = date, color = location)) + geom_line(aes(y = alex_c_L)) + labs(title = "Alexandrium over Time", y ="Concentration (uM)", x = "Date", color = "Location")
+sst <- ggplot(df_habs_interp, aes(x = date, color = location)) + geom_line(aes(y = temp)) + labs(title = "SST over Time", y ="Temperature (C)", x = "Date", color = "Location")
+
+pn <- ggplot(df_habs_interp, aes(x = date, color = location)) + geom_line(aes(y = pn)) + labs(title = "P. seriata over Time", y ="Concentration (uM)", x = "Date", color = "Location")
+
+alex <- ggplot(df_habs_interp, aes(x = date, color = location)) + geom_line(aes(y = alex)) + labs(title = "Alexandrium over Time", y ="Concentration (uM)", x = "Date", color = "Location")
+
 
 
 ```
 
 ```{r}
 
-lm_pn <- lm(data = df_habs, pn_ser_c_L ~ . - location - sample_id)
+lm_pn <- step(lm(data = df_habs_interp, pn ~ . -alex-date))
+summary(lm_pn)
 
-step(lm_pn)
+dfs <- c()
+pns <- c()
+alexs <- c()
+
+
+cities <- c("CalPoly", "StearnsWharf", "SantaMonicaPier", "NewportPier", "ScrippsPier")
+
+for (i in seq(length(cities))) {
+  
+  df <- df_habs_interp %>% filter(location == cities[i]) %>% drop_na()
+  lm_pn <- step(lm(data = df, pn ~ nh4 + no3 + no2 + po4 + sio3 + temp + month + year))
+  summary(lm_pn)
+  lm_alex <-  step(lm(data = df, alex ~ nh4 + no3 + no2 + po4 + sio3 + temp + month + year))
+  dfs[[i]] <- df
+  pns[[i]] <- lm_pn
+  alexs[[i]] <- lm_alex
+  
+}
+
 ```
 
 =======
