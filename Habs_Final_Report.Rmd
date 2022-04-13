@@ -1,0 +1,1097 @@
+---
+title: "HABs_Final"
+author: "Curtis Cha & Bryce O'Brien"
+date: "3/23/2022"
+output: pdf_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE, warning=FALSE}
+#set &check working directory 
+
+getwd()
+
+# Load your packages
+knitr::opts_chunk$set(echo = TRUE)
+library(pacman)
+pacman::p_load(tidyverse, tigris, lubridate, sf, mapview, finch, cowplot, zoo, trend, data.table, broom)
+
+# Set your ggplot theme
+mytheme <- theme_classic(base_size = 11) +
+  theme(axis.text = element_text(color = "black"), plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), plot.caption = element_text(hjust = 0.5))
+theme_set(mytheme)
+```
+
+```{r data input, echo = FALSE}
+# use finch package to read in the Darwin core archive file format
+hab_dwca <- dwca_read("https://www1.usgs.gov/obis-usa/ipt/archive.do?r=calhabmap&v=1.3")
+
+hab_occ_raw <- read.delim(hab_dwca$data[2])
+water_qual_raw <- read.delim(hab_dwca$data[3])
+
+#save raw dataframes
+write.csv(hab_occ_raw, "./Data/Raw/hab_occ_raw.csv", row.names = FALSE)
+write.csv(water_qual_raw, "./Data/Raw/water_qual_raw.csv", row.names = FALSE)
+```
+# Rationale and Research Questions
+
+# Dataset Information
+```{r data wrangling, echo = FALSE}
+#only certain species are of interest: Akashi sanguinea (reported fish and bird kills), Alexandriua (causes paralytic shellfish poisoning), cochlodinium (fish kills), dinophysis and lingulodinium (diarrhetic shellfish poisoining), and pseudo-nitzhcia (amnesic shellfishing poisoning)
+#source: https://calhabmap.org/prorocentrum-spp
+
+#clean up hab_occ, look only at specific species of algae (cause fish kills or human health risks), Cochlodinium has lots of na's, SantaCruzWharf does not measure Akashiwo, Lingodinium, and P. neutzchia delicat. drop Cochlodinum and Santa Cruz (we have Monterey just south of the SantaCruz wharf) 
+#continuous dates:latest start date is SantaCruzWharf 2011-10-05 , earliest final date is Scripps 2020-03-02
+
+#ERDAPP has the more updated data but still limited by Monterey's monitoring dataset (goes up to 03-2020 only)
+
+hab_occ_processed <- hab_occ_raw %>% 
+  mutate(species = paste(scientificName, "(", organismQuantityType, ")")) %>% 
+  select(id, organismQuantity, species) %>% 
+  pivot_wider(names_from = species, values_from=organismQuantity) %>% 
+  select("id", "Akashiwo sanguinea ( cells/L )", "Alexandrium ( cells/L )", "Dinophysis ( cells/L )", "Lingulodinium polyedra ( cells/L )", "Pseudo-nitzschia delicatissima ( cells/L )", "Pseudo-nitzschia seriata ( cells/L )") 
+#%>% mutate_all(~replace(., is.na(.), 0))
+
+#clean up water_qual
+water_qual_processed <- water_qual_raw %>%  
+  mutate(measurement = paste(measurementType, "(", measurementUnit, ")")) %>% 
+  select(id, measurementValue, measurement) %>% 
+  pivot_wider(names_from = measurement, values_from=measurementValue)
+
+#combined hab_occ and water_quality to biological, chemical, and physical data for each given location/time. Location and time data were extracted from the eventID string, and long/lat taken from hab_events df, then converted to sf
+
+#try looking at all the water_quality. remove pDA (biotoxin of pseudo-nitzchia), phaeo, chlorophyll because they are byproducts of HABs (just want to use HAB concentrations as measurement of HAB), salinity because too many NA's. chose not to fill in HAB data. Chose to look only at P_ser and Alexandrium (Amenisic Shellfish Poisoning, Paralytic Shellfish Poisoning environmental health risks)
+
+hab_occ_wq <- merge(hab_occ_processed, water_qual_processed, by = c('id')) %>% 
+  mutate(locationID = str_extract(id, "[^HABs-](\\w+)(?=_)"), 
+         eventDate = ymd(str_extract(id, "(\\d+-\\d+-\\d+)"))) %>% 
+  filter(eventDate >= "2006-01-01") %>%
+  select(-c(`Salinity ( PSS )`, `Chl1 ( mg/m3 )`, `Chl2 ( mg/m3 )`,`Avg_Phaeo ( mg/m3 )`, `Avg_Chloro ( mg/m3 )`,`Phaeo1 ( mg/m3 )`, `Phaeo2 ( mg/m3 )`, `pDA ( ng/mL )`,`Nitrite_Nitrate ( uM )`, `Akashiwo sanguinea ( cells/L )`,`Akashiwo sanguinea ( cells/L )`, `Lingulodinium polyedra ( cells/L )`, `Pseudo-nitzschia delicatissima ( cells/L )`, `Dinophysis ( cells/L )`)) %>% filter(locationID != "SantaCruzWharf", locationID != "MontereyWharf")
+
+#monterey and sc have lots of na's, will drop
+na <- hab_occ_wq %>% group_by(locationID) %>% summarise_all(funs(sum(is.na(.))))
+
+date <- hab_occ_wq %>% group_by(locationID) %>% summarise(begin = min(eventDate), end  = max(eventDate))
+
+#save processed dataframes
+write.csv(hab_events_processed, "./Data/Processed/hab_events_processed.csv", row.names = FALSE)
+write.csv(hab_occ_processed, "./Data/Processed/hab_occ_processed.csv", row.names = FALSE)
+write.csv(water_qual_processed, "./Data/Processed/water_qual_processed.csv", row.names = FALSE)
+write.csv(hab_occ_wq, "./Data/Processed/hab_occ_wq.csv", row.names = FALSE)
+```
+
+```{r prelim data analysis, echo = FALSE}
+df_habs <- hab_occ_wq %>% 
+  mutate(month = month(eventDate), year = year(eventDate)) %>% 
+  select(eventDate, locationID, "Alexandrium ( cells/L )", "Pseudo-nitzschia seriata ( cells/L )", "Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )" , "Silicate ( uM )" , "Temp ( Celsius )", "month", "year") %>% drop_na()
+
+colnames(df_habs) <- c("date", "location", "alex", "pn", "nh4", "no3", "no2", "po4" , "sio3" , "temp", "month", "year")
+
+df_hab_table <- df_habs
+
+colnames(df_hab_table) <- c("Date", "Location", "Alex. (cells/L)", "Pseudo. (cells/L)", "NH4 (uM)", "NO3 (uM)", "NO2 (uM)", "PO4 (uM)" , "SiO3 (uM)" , "SST (C)", "Month", "Year")
+
+knitr::kable(head(df_hab_table), caption = "Table of Processed Data")
+```
+
+# Exploratory Analysis  
+
+```{r Exploratory Analysis, echo = FALSE}
+#prelim plots of sst, pn, and alex over time, grouped by location
+
+boxplot_pn <- ggplot(df_habs, aes(x = location, y = pn)) + 
+  geom_boxplot() + 
+  labs(y = "Concentration (cells/L)") + theme(axis.text.x = element_text(angle =20, hjust = 1), axis.title.x = element_blank())
+
+boxplot_alex <- ggplot(df_habs, aes(x = location, y = alex)) + 
+  geom_boxplot() + 
+  labs(x = "Location", y = "Concentration (cells/L)") + theme(axis.text.x = element_text(angle = 20, hjust = 1))
+
+scatter_pn_t <- ggplot(df_habs, aes(x = temp, y = pn, color = location)) +
+  geom_point() + labs(color = "Location") + theme(axis.title.x = element_blank(), axis.title.y = element_blank(), legend.position = c(0.80, 0.65), legend.spacing.y = unit(0, "mm"),
+        legend.background = element_blank(),
+        legend.box.background = element_rect(colour = "black"))
+
+scatter_alex_t <- ggplot(df_habs, aes(x = temp,y = alex, color = location)) + 
+  geom_point() + 
+  labs(x = "Temperature (C)") + theme(axis.title.y = element_blank(), legend.position="none")
+
+title_pn1 <- ggdraw() + 
+  draw_label(
+    "Pseudo-nitzchia ssp.",
+    fontface = 'bold',
+    x = 0,
+    hjust = 0
+  ) +
+  theme(plot.margin = margin(0, 0, 0, 7)
+  )
+
+title_al1 <- ggdraw() + 
+  draw_label(
+    "Alexandrium ssp.",
+    fontface = 'bold',
+    x = 0,
+    hjust = 0
+  ) +
+  theme(plot.margin = margin(0, 0, 0, 7)
+  )
+
+pn_explore <- plot_grid(boxplot_pn, scatter_pn_t, labels = "AUTO", align = "h",
+  label_size = 12,
+  label_x = 0, label_y = 0,
+  hjust = -4, vjust = -4)
+
+alex_explore <- plot_grid(boxplot_alex, scatter_alex_t , labels = "AUTO", align = "h",
+  label_size = 12,
+  label_x = 0, label_y = 0,
+  hjust = -4, vjust = -4)
+
+explore1 <- plot_grid(title_pn1, pn_explore,ncol = 1, rel_heights = c(0.1,1))
+
+explore2 <- plot_grid(title_al1, alex_explore,ncol = 1, rel_heights = c(0.1,1))
+
+plot_grid(explore1, explore2, ncol = 1)
+
+legend <- get_legend(scatter_alex_t)
+
+plot_grid(explore_3, legend, rel_widths = c(1, .1))
+
+```
+
+```{r Exploratory Analysis 2, echo = FALSE}
+
+nh4 <- ggplot(df_habs_interp, aes(x = date, color = location)) + geom_line(aes(y = nh4)) + labs(subtitle = "NH4", y ="uM", x = "Date", color = "Location") +  theme(axis.title.x = element_blank(), legend.spacing.y = unit(0, "mm"),
+        legend.background = element_blank(),
+        legend.box.background = element_rect(colour = "black"))
+
+no3 <- ggplot(df_habs_interp, aes(x = date, color = location)) + geom_line(aes(y = no3)) + labs(subtitle = "NO3", y ="Temperature (C)", x = "Date", color = "Location") +  theme(axis.title.x = element_blank(), axis.title.y = element_blank(), legend.position="none")
+
+no2 <- ggplot(df_habs_interp, aes(x = date, color = location)) + geom_line(aes(y = no2)) + labs(subtitle = "NO2", y ="Temperature (C)", x = "Date", color = "Location") +  theme(axis.title.x = element_blank(), axis.title.y = element_blank(), legend.position="none")
+
+po4 <- ggplot(df_habs_interp, aes(x = date, color = location)) + geom_line(aes(y = po4)) + labs(subtitle = "PO4", y ="uM", x = "Date", color = "Location") +  theme( legend.position="none")
+
+sio3 <- ggplot(df_habs_interp, aes(x = date, color = location)) + geom_line(aes(y = sio3)) + labs(subtitle = "SiO3", y ="Temperature (C)", x = "Date", color = "Location") +  theme(axis.title.y = element_blank(),legend.position="none") 
+
+sst <- ggplot(df_habs_interp, aes(x = date, color = location)) + geom_line(aes(y = temp)) + labs(title = "SST Over Time", y ="Temperature (C)", x = "Date", color = "Location") + theme(legend.spacing.y = unit(0, "mm"),
+        legend.background = element_blank(),
+        legend.box.background = element_rect(colour = "black"))
+plot_grid(nh4 + theme(legend.position = "none"), no3, no2, po4, sio3, get_legend(nh4))
+
+sst
+
+```
+
+# Analysis 
+
+
+
+# Results
+
+## Question 1
+=======
+
+```{r Alexandrium in Newport Pier: time series and AIC, echo = FALSE}
+#specify location
+NewportPier <- hab_occ_wq %>%
+  filter(locationID == "NewportPier")
+
+#generate daily dataset
+Alexandrium.Newport.Days <- as.data.frame(seq(from = as.Date("2008-06-30"), to = as.Date("2021-08-30"), by = 1))
+
+#change column name
+setnames(Alexandrium.Newport.Days, "eventDate")
+
+#combine dataframes
+Alexandrium.Newport.Combined <- left_join(Alexandrium.Newport.Days, NewportPier, by = "eventDate")
+
+#Interpolate missing Alexandrium values
+Alexandrium.Newport.Interpolation <- Alexandrium.Newport.Combined %>%
+  mutate(InterpolatedAlexandrium = zoo::na.approx(Alexandrium.Newport.Combined$`Alexandrium ( cells/L )`)) 
+
+#generate monthly mean df
+Alexandrium.Newport.Monthly <- Alexandrium.Newport.Interpolation %>%
+  mutate(Month = month(eventDate),
+         Year = year(eventDate)) %>%
+  mutate(Date = my(paste0(Month, "_", Year))) %>%
+  dplyr::group_by(Month, Year, Date) %>%
+  dplyr::summarise(MeanAlexandrium = mean(`InterpolatedAlexandrium`))
+
+#establish starting points
+Alexandrium.Newport.fmonth.daily <- month(first(Alexandrium.Newport.Interpolation$eventDate))
+Alexandrium.Newport.fyear.daily <- year(first(Alexandrium.Newport.Interpolation$eventDate))
+Alexandrium.Newport.fmonth.monthly <- month(first(Alexandrium.Newport.Monthly$Date))
+Alexandrium.Newport.fyear.monthly <- year(first(Alexandrium.Newport.Monthly$Date))
+
+
+#time series based on interpolated DAILY Alexandrium concentrations 
+Alexandrium.Newport.daily.ts <- ts(Alexandrium.Newport.Interpolation$`InterpolatedAlexandrium`,
+                  start=c(Alexandrium.Newport.fyear.daily, Alexandrium.Newport.fmonth.daily),
+                  frequency=365) 
+
+#print(Alexandrium.Newport.daily.ts)
+
+#time series based on interpolated MONTHLY Alexandrium concentrations 
+
+Alexandrium.Newport.monthly.ts <- ts(Alexandrium.Newport.Monthly$MeanAlexandrium,
+                   start=c(Alexandrium.Newport.fyear.monthly, Alexandrium.Newport.fmonth.monthly),
+                   frequency=12)
+
+#print(Alexandrium.Newport.monthly.ts)
+
+#decomposed time series
+Alexandrium.Newport.DailyDecomp <- stl(Alexandrium.Newport.daily.ts, s.window = "periodic")
+plot(Alexandrium.Newport.DailyDecomp)
+Alexandrium.Newport.MonthlyDecomp <- stl(Alexandrium.Newport.monthly.ts, s.window = "periodic")
+plot(Alexandrium.Newport.MonthlyDecomp)
+
+#Run the Mann Kendall tets
+Alexandrium.Newport.daily.MannKendall <- Kendall::MannKendall(Alexandrium.Newport.daily.ts)
+summary(Alexandrium.Newport.daily.MannKendall)
+
+Alexandrium.Newport.monthly.MannKendall <- Kendall::SeasonalMannKendall(Alexandrium.Newport.monthly.ts)
+summary(Alexandrium.Newport.monthly.MannKendall)
+
+#data visualization 
+Alex.Newport.Monthly.Fig <- ggplot(Alexandrium.Newport.Monthly, aes(x = `Date`, y = `MeanAlexandrium`)) +  
+  geom_line() + 
+  geom_smooth(method = lm) +
+  geom_hline(yintercept=100) +
+ labs(y = "Concentration (cells/L)", subtitle = "Newport Pier 06/2008 - 08/2021")
+
+#AIC - begin by removing NAs
+#Alexandrium.Newport.AIC.df <- Alexandrium.Newport.Interpolation %>%
+#  drop_na("Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )", "Silicate ( uM )", "Temp ( Celsius )")
+
+#Alexandrium.Newport.AIC <- lm(data = Alexandrium.Newport.AIC.df, InterpolatedAlexandrium ~ `Ammonium ( uM )` + `Nitrate ( uM )` + `Nitrite ( uM )` + `Phosphate ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
+#step(Alexandrium.Newport.AIC)
+
+#multiple regression
+#Alexandrium.Newport.regression <- lm(data = Alexandrium.Newport.AIC.df, InterpolatedAlexandrium ~ `Phosphate ( uM )`)
+#summary(Alexandrium.Newport.regression)
+```
+
+```{r Alexandrium in San Luis Obispo: time series and AIC, echo = FALSE}
+#specify location
+CalPoly <- hab_occ_wq %>%
+  filter(locationID == "CalPoly")
+
+#generate daily dataset
+Alexandrium.CalPoly.Days <- as.data.frame(seq(from = as.Date("2008-08-15"), to = as.Date("2021-09-13"), by = 1))
+
+#change column name
+setnames(Alexandrium.CalPoly.Days, "eventDate")
+
+#combine dataframes
+Alexandrium.CalPoly.Combined <- left_join(Alexandrium.CalPoly.Days, CalPoly, by = "eventDate")
+
+#Interpolate missing Alexandrium values
+Alexandrium.CalPoly.Interpolation <- Alexandrium.CalPoly.Combined %>%
+  mutate(InterpolatedAlexandrium = zoo::na.approx(Alexandrium.CalPoly.Combined$`Alexandrium ( cells/L )`))
+
+#generate monthly mean df
+Alexandrium.CalPoly.Monthly <- Alexandrium.CalPoly.Interpolation %>%
+  mutate(Month = month(eventDate),
+         Year = year(eventDate)) %>%
+  mutate(Date = my(paste0(Month, "_", Year))) %>%
+  dplyr::group_by(Month, Year, Date) %>%
+  dplyr::summarise(MeanAlexandrium = mean(`InterpolatedAlexandrium`))
+
+#establish starting points
+Alexandrium.CalPoly.fmonth.daily <- month(first(Alexandrium.CalPoly.Interpolation$eventDate))
+Alexandrium.CalPoly.fyear.daily <- year(first(Alexandrium.CalPoly.Interpolation$eventDate))
+Alexandrium.CalPoly.fmonth.monthly <- month(first(Alexandrium.CalPoly.Monthly$Date))
+Alexandrium.CalPoly.fyear.monthly <- year(first(Alexandrium.CalPoly.Monthly$Date))
+
+
+#time series based on interpolated DAILY Alexandrium concentrations 
+Alexandrium.CalPoly.daily.ts <- ts(Alexandrium.CalPoly.Interpolation$`InterpolatedAlexandrium`,
+                  start=c(Alexandrium.CalPoly.fyear.daily, Alexandrium.CalPoly.fmonth.daily),
+                  frequency=365) 
+
+#print(Alexandrium.CalPoly.daily.ts)
+
+#time series based on interpolated MONTHLY Alexandrium concentrations 
+
+Alexandrium.CalPoly.monthly.ts <- ts(Alexandrium.CalPoly.Monthly$MeanAlexandrium,
+                   start=c(Alexandrium.CalPoly.fyear.monthly, Alexandrium.CalPoly.fmonth.monthly),
+                   frequency=12)
+
+#print(Alexandrium.CalPoly.monthly.ts)
+
+#decomposed time series
+Alexandrium.CalPoly.DailyDecomp <- stl(Alexandrium.CalPoly.daily.ts, s.window = "periodic")
+plot(Alexandrium.CalPoly.DailyDecomp)
+Alexandrium.CalPoly.MonthlyDecomp <- stl(Alexandrium.CalPoly.monthly.ts, s.window = "periodic")
+plot(Alexandrium.CalPoly.MonthlyDecomp)
+
+#Run the Mann Kendall tets
+Alexandrium.CalPoly.daily.MannKendall <- Kendall::MannKendall(Alexandrium.CalPoly.daily.ts)
+summary(Alexandrium.CalPoly.daily.MannKendall)
+
+Alexandrium.CalPoly.monthly.MannKendall <- Kendall::SeasonalMannKendall(Alexandrium.CalPoly.monthly.ts)
+summary(Alexandrium.CalPoly.monthly.MannKendall)
+
+#data visualization 
+Alex.CalPoly.Monthly.Fig <- ggplot(Alexandrium.CalPoly.Monthly, aes(x = `Date`, y = `MeanAlexandrium`)) +  
+  geom_line() + 
+  geom_smooth(method = lm) +
+  geom_hline(yintercept=100) +
+labs(y = "Concentration (cells/L)", 
+subtitle = "San Luis Obispo 08/2008 - 09/2021")
+
+#AIC - begin by removing NAs
+#Alexandrium.CalPoly.AIC.df <- Alexandrium.CalPoly.Interpolation %>%
+#  drop_na("Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )", "Silicate ( uM )", "Temp ( Celsius )")
+
+#Alexandrium.CalPoly.AIC <- lm(data = Alexandrium.CalPoly.AIC.df, InterpolatedAlexandrium ~ `Ammonium ( uM )` + `Nitrate ( uM )` + `Nitrite ( uM )` + `Phosphate ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
+#step(Alexandrium.CalPoly.AIC)
+
+#multiple regression
+#Alexandrium.CalPoly.multiple.regression <- lm(data = Alexandrium.CalPoly.AIC.df, InterpolatedAlexandrium ~ `Nitrate ( uM )` + `Phosphate ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
+#summary(Alexandrium.CalPoly.multiple.regression )
+```
+
+```{r Alexandrium in Santa Monica: time series and AIC, echo = FALSE}
+#specify location
+SantaMonica <- hab_occ_wq %>%
+  filter(locationID == "SantaMonicaPier")
+
+#generate daily dataset
+Alexandrium.SantaMonica.Days <- as.data.frame(seq(from = as.Date("2008-06-30"), to = as.Date("2021-08-23"), by = 1))
+
+#change column name
+setnames(Alexandrium.SantaMonica.Days, "eventDate")
+
+#combine dataframes
+Alexandrium.SantaMonica.Combined <- left_join(Alexandrium.SantaMonica.Days, SantaMonica, by = "eventDate")
+
+#Interpolate missing Alexandrium values
+Alexandrium.SantaMonica.Interpolation <- Alexandrium.SantaMonica.Combined %>%
+  mutate(InterpolatedAlexandrium = zoo::na.approx(Alexandrium.SantaMonica.Combined$`Alexandrium ( cells/L )`))
+
+#generate monthly mean df
+Alexandrium.SantaMonica.Monthly <- Alexandrium.SantaMonica.Interpolation %>%
+  mutate(Month = month(eventDate),
+         Year = year(eventDate)) %>%
+  mutate(Date = my(paste0(Month, "_", Year))) %>%
+  dplyr::group_by(Month, Year, Date) %>%
+  dplyr::summarise(MeanAlexandrium = mean(`InterpolatedAlexandrium`))
+
+#establish starting points
+Alexandrium.SantaMonica.fmonth.daily <- month(first(Alexandrium.SantaMonica.Interpolation$eventDate))
+Alexandrium.SantaMonica.fyear.daily <- year(first(Alexandrium.SantaMonica.Interpolation$eventDate))
+Alexandrium.SantaMonica.fmonth.monthly <- month(first(Alexandrium.SantaMonica.Monthly$Date))
+Alexandrium.SantaMonica.fyear.monthly <- year(first(Alexandrium.SantaMonica.Monthly$Date))
+
+
+#time series based on interpolated DAILY Alexandrium concentrations 
+Alexandrium.SantaMonica.daily.ts <- ts(Alexandrium.SantaMonica.Interpolation$`InterpolatedAlexandrium`,
+                  start=c(Alexandrium.SantaMonica.fyear.daily, Alexandrium.SantaMonica.fmonth.daily),
+                  frequency=365) 
+
+#print(Alexandrium.SantaMonica.daily.ts)
+
+#time series based on interpolated MONTHLY Alexandrium concentrations 
+
+Alexandrium.SantaMonica.monthly.ts <- ts(Alexandrium.SantaMonica.Monthly$MeanAlexandrium,
+                   start=c(Alexandrium.SantaMonica.fyear.monthly, Alexandrium.SantaMonica.fmonth.monthly),
+                   frequency=12)
+
+#print(Alexandrium.SantaMonica.monthly.ts)
+
+#decomposed time series
+Alexandrium.SantaMonica.DailyDecomp <- stl(Alexandrium.SantaMonica.daily.ts, s.window = "periodic")
+plot(Alexandrium.SantaMonica.DailyDecomp)
+Alexandrium.SantaMonica.MonthlyDecomp <- stl(Alexandrium.SantaMonica.monthly.ts, s.window = "periodic")
+plot(Alexandrium.SantaMonica.MonthlyDecomp)
+
+#Run the Mann Kendall tets
+Alexandrium.SantaMonica.daily.MannKendall <- Kendall::MannKendall(Alexandrium.SantaMonica.daily.ts)
+summary(Alexandrium.SantaMonica.daily.MannKendall)
+
+Alexandrium.SantaMonica.monthly.MannKendall <- Kendall::SeasonalMannKendall(Alexandrium.SantaMonica.monthly.ts)
+summary(Alexandrium.SantaMonica.monthly.MannKendall)
+
+#data visualization 
+Alex.SantaMonica.Monthly.Fig <- ggplot(Alexandrium.SantaMonica.Monthly, aes(x = `Date`, y = `MeanAlexandrium`)) +  
+  geom_line() + 
+  geom_smooth(method = lm) +
+  geom_hline(yintercept=100) +
+ labs(y = "Concentration (cells/L)",
+subtitle = "Santa Monica 06/2008 - 08/2021")
+
+#AIC - begin by removing NAs
+#Alexandrium.SantaMonica.AIC.df <- Alexandrium.SantaMonica.Interpolation %>%
+#  drop_na("Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )", "Silicate ( uM )", "Temp ( Celsius )")
+
+#Alexandrium.SantaMonica.AIC <- lm(data = Alexandrium.SantaMonica.AIC.df, InterpolatedAlexandrium ~ `Ammonium ( uM )` + `Nitrate ( uM )` + `Nitrite ( uM )` + `Phosphate ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
+#step(Alexandrium.SantaMonica.AIC)
+
+#multiple regression
+#Alexandrium.SantaMonica.regression <- lm(data = Alexandrium.SantaMonica.AIC.df, InterpolatedAlexandrium ~ `Silicate ( uM )`)
+#summary(Alexandrium.SantaMonica.regression)
+```
+
+```{r Alexandrium in San Diego: time series and AIC, echo = FALSE}
+#specify location
+SanDiego <- hab_occ_wq %>%
+  filter(locationID == "ScrippsPier")
+
+#generate daily dataset
+Alexandrium.SanDiego.Days <- as.data.frame(seq(from = as.Date("2011-01-03"), to = as.Date("2020-03-02"), by = 1))
+
+#change column name
+setnames(Alexandrium.SanDiego.Days, "eventDate")
+
+#combine dataframes
+Alexandrium.SanDiego.Combined <- left_join(Alexandrium.SanDiego.Days, SanDiego, by = "eventDate")
+
+#Interpolate missing Alexandrium values
+Alexandrium.SanDiego.Interpolation <- Alexandrium.SanDiego.Combined %>%
+  mutate(InterpolatedAlexandrium = zoo::na.approx(Alexandrium.SanDiego.Combined$`Alexandrium ( cells/L )`))
+
+#generate monthly mean df
+Alexandrium.SanDiego.Monthly <- Alexandrium.SanDiego.Interpolation %>%
+  mutate(Month = month(eventDate),
+         Year = year(eventDate)) %>%
+  mutate(Date = my(paste0(Month, "_", Year))) %>%
+  dplyr::group_by(Month, Year, Date) %>%
+  dplyr::summarise(MeanAlexandrium = mean(`InterpolatedAlexandrium`))
+
+#establish starting points
+Alexandrium.SanDiego.fmonth.daily <- month(first(Alexandrium.SanDiego.Interpolation$eventDate))
+Alexandrium.SanDiego.fyear.daily <- year(first(Alexandrium.SanDiego.Interpolation$eventDate))
+Alexandrium.SanDiego.fmonth.monthly <- month(first(Alexandrium.SanDiego.Monthly$Date))
+Alexandrium.SanDiego.fyear.monthly <- year(first(Alexandrium.SanDiego.Monthly$Date))
+
+
+#time series based on interpolated DAILY Alexandrium concentrations 
+Alexandrium.SanDiego.daily.ts <- ts(Alexandrium.SanDiego.Interpolation$`InterpolatedAlexandrium`,
+                  start=c(Alexandrium.SanDiego.fyear.daily, Alexandrium.SanDiego.fmonth.daily),
+                  frequency=365) 
+
+#print(Alexandrium.SanDiego.daily.ts)
+
+#time series based on interpolated MONTHLY Alexandrium concentrations 
+
+Alexandrium.SanDiego.monthly.ts <- ts(Alexandrium.SanDiego.Monthly$MeanAlexandrium,
+                   start=c(Alexandrium.SanDiego.fyear.monthly, Alexandrium.SanDiego.fmonth.monthly),
+                   frequency=12)
+
+#print(Alexandrium.SanDiego.monthly.ts)
+
+#decomposed time series
+Alexandrium.SanDiego.DailyDecomp <- stl(Alexandrium.SanDiego.daily.ts, s.window = "periodic")
+plot(Alexandrium.SanDiego.DailyDecomp)
+Alexandrium.SanDiego.MonthlyDecomp <- stl(Alexandrium.SanDiego.monthly.ts, s.window = "periodic")
+plot(Alexandrium.SanDiego.MonthlyDecomp)
+
+#Run the Mann Kendall tets
+Alexandrium.SanDiego.daily.MannKendall <- Kendall::MannKendall(Alexandrium.SanDiego.daily.ts)
+summary(Alexandrium.SanDiego.daily.MannKendall)
+
+Alexandrium.SanDiego.monthly.MannKendall <- Kendall::SeasonalMannKendall(Alexandrium.SanDiego.monthly.ts)
+summary(Alexandrium.SanDiego.monthly.MannKendall)
+
+#data visualization 
+Alex.SanDiego.Monthly.Fig <- ggplot(Alexandrium.SanDiego.Monthly, aes(x = `Date`, y = `MeanAlexandrium`)) +  
+  geom_line() + 
+  geom_smooth(method = lm) +
+  geom_hline(yintercept=100) +
+ labs(y = "Concentration (cells/L)",
+subtitle = "San Diego 01/2011 - 03/2020")
+
+#AIC - begin by removing NAs
+#Alexandrium.SanDiego.AIC.df <- Alexandrium.SanDiego.Interpolation %>%
+#  drop_na("Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )", "Silicate ( uM )", "Temp ( Celsius )")
+
+#Alexandrium.SanDiego.AIC <- lm(data = Alexandrium.SanDiego.AIC.df, InterpolatedAlexandrium ~ `Ammonium ( uM )` + `Nitrate ( uM )` + `Nitrite ( uM )` + `Phosphate ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
+#step(Alexandrium.SanDiego.AIC)
+
+#regression
+#Alexandrium.SanDiego.regression <- lm(data = Alexandrium.SanDiego.AIC.df, InterpolatedAlexandrium ~ `Temp ( Celsius )`)
+#summary(Alexandrium.SanDiego.regression)
+```
+
+```{r Alexandrium in Santa Barbara: time series and AIC, echo = FALSE}
+#specify location
+SantaBarbara <- hab_occ_wq %>%
+  filter(locationID == "StearnsWharf")
+
+#generate daily dataset
+Alexandrium.SantaBarbara.Days <- as.data.frame(seq(from = as.Date("2008-06-30"), to = as.Date("2021-07-12"), by = 1))
+
+#change column name
+setnames(Alexandrium.SantaBarbara.Days, "eventDate")
+
+#combine dataframes
+Alexandrium.SantaBarbara.Combined <- left_join(Alexandrium.SantaBarbara.Days, SantaBarbara, by = "eventDate")
+
+#Interpolate missing Alexandrium values
+Alexandrium.SantaBarbara.Interpolation <- Alexandrium.SantaBarbara.Combined %>%
+  mutate(InterpolatedAlexandrium = zoo::na.approx(Alexandrium.SantaBarbara.Combined$`Alexandrium ( cells/L )`))
+
+#generate monthly mean df
+Alexandrium.SantaBarbara.Monthly <- Alexandrium.SantaBarbara.Interpolation %>%
+  mutate(Month = month(eventDate),
+         Year = year(eventDate)) %>%
+  mutate(Date = my(paste0(Month, "_", Year))) %>%
+  dplyr::group_by(Month, Year, Date) %>%
+  dplyr::summarise(MeanAlexandrium = mean(`InterpolatedAlexandrium`))
+
+#establish starting points
+Alexandrium.SantaBarbara.fmonth.daily <- month(first(Alexandrium.SantaBarbara.Interpolation$eventDate))
+Alexandrium.SantaBarbara.fyear.daily <- year(first(Alexandrium.SantaBarbara.Interpolation$eventDate))
+Alexandrium.SantaBarbara.fmonth.monthly <- month(first(Alexandrium.SantaBarbara.Monthly$Date))
+Alexandrium.SantaBarbara.fyear.monthly <- year(first(Alexandrium.SantaBarbara.Monthly$Date))
+
+
+#time series based on interpolated DAILY Alexandrium concentrations 
+Alexandrium.SantaBarbara.daily.ts <- ts(Alexandrium.SantaBarbara.Interpolation$`InterpolatedAlexandrium`,
+                  start=c(Alexandrium.SantaBarbara.fyear.daily, Alexandrium.SantaBarbara.fmonth.daily),
+                  frequency=365) 
+
+#print(Alexandrium.SantaBarbara.daily.ts)
+
+#time series based on interpolated MONTHLY Alexandrium concentrations 
+
+Alexandrium.SantaBarbara.monthly.ts <- ts(Alexandrium.SantaBarbara.Monthly$MeanAlexandrium,
+                   start=c(Alexandrium.SantaBarbara.fyear.monthly, Alexandrium.SantaBarbara.fmonth.monthly),
+                   frequency=12)
+
+#print(Alexandrium.SantaBarbara.monthly.ts)
+
+#decomposed time series
+Alexandrium.SantaBarbara.DailyDecomp <- stl(Alexandrium.SantaBarbara.daily.ts, s.window = "periodic")
+plot(Alexandrium.SantaBarbara.DailyDecomp)
+Alexandrium.SantaBarbara.MonthlyDecomp <- stl(Alexandrium.SantaBarbara.monthly.ts, s.window = "periodic")
+plot(Alexandrium.SantaBarbara.MonthlyDecomp)
+
+#Run the Mann Kendall tets
+Alexandrium.SantaBarbara.daily.MannKendall <- Kendall::MannKendall(Alexandrium.SantaBarbara.daily.ts)
+summary(Alexandrium.SantaBarbara.daily.MannKendall)
+
+Alexandrium.SantaBarbara.monthly.MannKendall <- Kendall::SeasonalMannKendall(Alexandrium.SantaBarbara.monthly.ts)
+summary(Alexandrium.SantaBarbara.monthly.MannKendall)
+
+#data visualization 
+Alex.SantaBarbara.Monthly.Fig <- ggplot(Alexandrium.SantaBarbara.Monthly, aes(x = `Date`, y = `MeanAlexandrium`)) +  
+  geom_line() + 
+  geom_smooth(method = lm) +
+  geom_hline(yintercept=100) +
+ labs(y = "Concentration (cells/L)",
+subtitle = "Santa Barbara 06/2008 - 07/2021")
+
+#AIC - begin by removing NAs
+#Alexandrium.SantaBarbara.AIC.df <- Alexandrium.SantaBarbara.Interpolation %>%
+#  drop_na("Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )", "Silicate ( uM )", "Temp ( Celsius )")
+
+#Alexandrium.SantaBarbara.AIC <- lm(data = Alexandrium.SantaBarbara.AIC.df, InterpolatedAlexandrium ~ `Ammonium ( uM )` + `Nitrate ( uM )` + `Nitrite ( uM )` + `Phosphate ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
+#step(Alexandrium.SantaBarbara.AIC)
+
+#regression
+#Alexandrium.SantaBarbara.multiple.regression <- lm(data = Alexandrium.SanDiego.AIC.df, InterpolatedAlexandrium ~ `Nitrite ( uM )` + `Phosphate ( uM )`)
+#summary(Alexandrium.SantaBarbara.multiple.regression)
+```
+
+```{r Pseudo-nitzschia seriata in San Luis Obispo: time series and AIC, echo = FALSE}
+#specify location
+CalPoly <- hab_occ_wq %>%
+  filter(locationID == "CalPoly")
+
+#generate daily dataset
+Seriata.CalPoly.Days <- as.data.frame(seq(from = as.Date("2008-08-15"), to = as.Date("2021-09-13"), by = 1))
+
+#change column name
+setnames(Seriata.CalPoly.Days, "eventDate")
+
+#combine dataframes
+Seriata.CalPoly.Combined <- left_join(Seriata.CalPoly.Days, CalPoly, by = "eventDate")
+
+#Interpolate missing HAB values & drop NA for AIC
+Seriata.CalPoly.Interpolation <- Seriata.CalPoly.Combined %>%
+  mutate(InterpolatedSeriata = zoo::na.approx(Seriata.CalPoly.Combined$`Pseudo-nitzschia seriata ( cells/L )`)) 
+
+#generate monthly mean df
+Seriata.CalPoly.Monthly <- Seriata.CalPoly.Interpolation %>%
+  mutate(Month = month(eventDate),
+         Year = year(eventDate)) %>%
+  mutate(Date = my(paste0(Month, "_", Year))) %>%
+  dplyr::group_by(Month, Year, Date) %>%
+  dplyr::summarise(MeanSeriata = mean(`InterpolatedSeriata`))
+
+#establish starting points
+Seriata.CalPoly.fmonth.daily <- month(first(Seriata.CalPoly.Interpolation$eventDate))
+Seriata.CalPoly.fyear.daily <- year(first(Seriata.CalPoly.Interpolation$eventDate))
+Seriata.CalPoly.fmonth.monthly <- month(first(Seriata.CalPoly.Monthly$Date))
+Seriata.CalPoly.fyear.monthly <- year(first(Seriata.CalPoly.Monthly$Date))
+
+
+#time series based on interpolated DAILY HAB concentrations 
+Seriata.CalPoly.daily.ts <- ts(Seriata.CalPoly.Interpolation$InterpolatedSeriata,
+                  start=c(Seriata.CalPoly.fyear.daily, Seriata.CalPoly.fmonth.daily),
+                  frequency=365) 
+
+#print(Seriata.CalPoly.daily.ts)
+
+#time series based on interpolated MONTHLY HAB concentrations 
+Seriata.CalPoly.monthly.ts <- ts(Seriata.CalPoly.Monthly$MeanSeriata,
+                   start=c(Seriata.CalPoly.fyear.monthly, Seriata.CalPoly.fmonth.monthly),
+                   frequency=12)
+
+#print(Seriata.CalPoly.monthly.ts)
+
+#decomposed time series
+Seriata.CalPoly.DailyDecomp <- stl(Seriata.CalPoly.daily.ts, s.window = "periodic")
+plot(Seriata.CalPoly.DailyDecomp)
+Alexandrium.Newport.MonthlyDecomp <- stl(Alexandrium.Newport.monthly.ts, s.window = "periodic")
+plot(Alexandrium.Newport.MonthlyDecomp)
+
+#Run the Mann Kendall tets
+Seriata.CalPoly.daily.MannKendall <- Kendall::MannKendall(Seriata.CalPoly.daily.ts)
+summary(Seriata.CalPoly.daily.MannKendall)
+
+Seriata.CalPoly.monthly.MannKendall <- Kendall::SeasonalMannKendall(Seriata.CalPoly.monthly.ts)
+summary(Seriata.CalPoly.monthly.MannKendall)
+
+#data visualization 
+Seriata.CalPoly.Monthly.Fig <- ggplot(Seriata.CalPoly.Monthly, aes(x = `Date`, y = `MeanSeriata`)) +  
+  geom_line() + 
+  geom_smooth(method = lm) +
+  geom_hline(yintercept=10000) +
+ labs(y = "Concentration (cells/L)", 
+subtitle = "San Luis Obispo 8/2008 - 09/2021")
+#print(Seriata.CalPoly.Monthly.Fig)
+
+#AIC - begin by removing NAs
+#Seriata.CalPoly.AIC.df <- Seriata.CalPoly.Interpolation %>%
+#  drop_na("Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )", "Silicate ( uM )", "Temp ( Celsius )")
+
+#Seriata.CalPoly.AIC <- lm(data = Seriata.CalPoly.AIC.df, InterpolatedSeriata ~ `Ammonium ( uM )` + `Nitrate ( uM )` + `Nitrite ( uM )` + `Phosphate ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
+#step(Seriata.CalPoly.AIC)
+
+#multiple regression
+#Seriata.CalPoly.regression <- lm(data = Seriata.CalPoly.AIC.df, InterpolatedSeriata~ `Silicate ( uM )`)
+#summary(Seriata.CalPoly.regression)
+```
+
+```{r Pseudo-nitzschia seriata in Santa Monica: time series and AIC, echo = FALSE}
+#specify location
+SantaMonica <- hab_occ_wq %>%
+  filter(locationID == "SantaMonicaPier")
+
+#generate daily dataset
+Seriata.SantaMonica.Days <- as.data.frame(seq(from = as.Date("2008-06-30"), to = as.Date("2021-08-23"), by = 1))
+
+#change column name
+setnames(Seriata.SantaMonica.Days, "eventDate")
+
+#combine dataframes
+Seriata.SantaMonica.Combined <- left_join(Seriata.SantaMonica.Days, SantaMonica, by = "eventDate")
+
+#Interpolate missing HAB values & drop NA for AIC
+Seriata.SantaMonica.Interpolation <- Seriata.SantaMonica.Combined %>%
+  mutate(InterpolatedSeriata = zoo::na.approx(Seriata.SantaMonica.Combined$`Pseudo-nitzschia seriata ( cells/L )`)) 
+
+#generate monthly mean df
+Seriata.SantaMonica.Monthly <- Seriata.SantaMonica.Interpolation %>%
+  mutate(Month = month(eventDate),
+         Year = year(eventDate)) %>%
+  mutate(Date = my(paste0(Month, "_", Year))) %>%
+  dplyr::group_by(Month, Year, Date) %>%
+  dplyr::summarise(MeanSeriata = mean(`InterpolatedSeriata`))
+
+#establish starting points
+Seriata.SantaMonica.fmonth.daily <- month(first(Seriata.SantaMonica.Interpolation$eventDate))
+Seriata.SantaMonica.fyear.daily <- year(first(Seriata.SantaMonica.Interpolation$eventDate))
+Seriata.SantaMonica.fmonth.monthly <- month(first(Seriata.SantaMonica.Monthly$Date))
+Seriata.SantaMonica.fyear.monthly <- year(first(Seriata.SantaMonica.Monthly$Date))
+
+
+#time series based on interpolated DAILY HAB concentrations 
+Seriata.SantaMonica.daily.ts <- ts(Seriata.SantaMonica.Interpolation$InterpolatedSeriata,
+                  start=c(Seriata.SantaMonica.fyear.daily, Seriata.SantaMonica.fmonth.daily),
+                  frequency=365) 
+
+#print(Seriata.SantaMonica.daily.ts)
+
+#time series based on interpolated MONTHLY HAB concentrations 
+Seriata.SantaMonica.monthly.ts <- ts(Seriata.SantaMonica.Monthly$MeanSeriata,
+                   start=c(Seriata.SantaMonica.fyear.monthly, Seriata.SantaMonica.fmonth.monthly),
+                   frequency=12)
+
+#print(Seriata.SantaMonica.monthly.ts)
+
+#decomposed time series
+Seriata.SantaMonica.DailyDecomp <- stl(Seriata.SantaMonica.daily.ts, s.window = "periodic")
+plot(Seriata.SantaMonica.DailyDecomp)
+
+Seriata.SantaMonica.MonthlyDecomp <- stl(Seriata.SantaMonica.monthly.ts, s.window = "periodic")
+plot(Seriata.SantaMonica.MonthlyDecomp)
+
+#Run the Mann Kendall tets
+Seriata.SantaMonica.daily.MannKendall <- Kendall::MannKendall(Seriata.SantaMonica.daily.ts)
+summary(Seriata.SantaMonica.daily.MannKendall)
+
+Seriata.SantaMonica.monthly.MannKendall <- Kendall::SeasonalMannKendall(Seriata.SantaMonica.monthly.ts)
+summary(Seriata.SantaMonica.monthly.MannKendall)
+
+#data visualization 
+Seriata.SantaMonica.Monthly.Fig <- ggplot(Seriata.SantaMonica.Monthly, aes(x = `Date`, y = `MeanSeriata`)) +  
+  geom_line() + 
+  geom_smooth(method = lm) +
+  geom_hline(yintercept=10000) +
+ labs(y = "Concentration (cells/L)",
+subtitle = "Santa Monica 06/2008 - 08/2021")
+#print(Seriata.SantaMonica.Monthly.Fig)
+
+#AIC - begin by removing NAs
+#Seriata.SantaMonica.AIC.df <- Seriata.SantaMonica.Interpolation %>%
+#  drop_na("Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )", "Silicate ( uM )", "Temp ( Celsius )")
+
+#Seriata.SantaMonica.AIC <- lm(data = Seriata.SantaMonica.AIC.df, InterpolatedSeriata ~ `Ammonium ( uM )` + `Nitrate ( uM )` + `Nitrite ( uM )` + `Phosphate ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
+#step(Seriata.SantaMonica.AIC)
+
+#multiple regression
+#Seriata.SantaMonica.multiple.regression <- lm(data = Seriata.SantaMonica.AIC.df, InterpolatedSeriata ~ `Ammonium ( uM )` + `Nitrate ( uM )` + `Nitrite ( uM )` + `Silicate ( uM )`)
+#summary(Seriata.SantaMonica.multiple.regression)
+```
+
+```{r Pseudo-nitzschia seriata in San Diego: time series and AIC, echo = FALSE}
+#specify location
+SanDiego <- hab_occ_wq %>%
+  filter(locationID == "ScrippsPier")
+
+#generate daily dataset
+Seriata.SanDiego.Days <- as.data.frame(seq(from = as.Date("2011-01-03"), to = as.Date("2020-03-02"), by = 1))
+
+#change column name
+setnames(Seriata.SanDiego.Days, "eventDate")
+
+#combine dataframes
+Seriata.SanDiego.Combined <- left_join(Seriata.SanDiego.Days, SanDiego, by = "eventDate")
+
+#Interpolate missing HAB values
+Seriata.SanDiego.Interpolation <- Seriata.SanDiego.Combined %>%
+  mutate(InterpolatedSeriata = zoo::na.approx(Seriata.SanDiego.Combined$`Pseudo-nitzschia seriata ( cells/L )`)) 
+
+#generate monthly mean df
+Seriata.SanDiego.Monthly <- Seriata.SanDiego.Interpolation %>%
+  mutate(Month = month(eventDate),
+         Year = year(eventDate)) %>%
+  mutate(Date = my(paste0(Month, "_", Year))) %>%
+  dplyr::group_by(Month, Year, Date) %>%
+  dplyr::summarise(MeanSeriata = mean(`InterpolatedSeriata`))
+
+#establish starting points
+Seriata.SanDiego.fmonth.daily <- month(first(Seriata.SanDiego.Interpolation$eventDate))
+Seriata.SanDiego.fyear.daily <- year(first(Seriata.SanDiego.Interpolation$eventDate))
+Seriata.SanDiego.fmonth.monthly <- month(first(Seriata.SanDiego.Monthly$Date))
+Seriata.SanDiego.fyear.monthly <- year(first(Seriata.SanDiego.Monthly$Date))
+
+
+#time series based on interpolated DAILY HAB concentrations 
+Seriata.SanDiego.daily.ts <- ts(Seriata.SanDiego.Interpolation$InterpolatedSeriata,
+                  start=c(Seriata.SanDiego.fyear.daily, Seriata.SanDiego.fmonth.daily),
+                  frequency=365) 
+
+#print(Seriata.SanDiego.daily.ts)
+
+#time series based on interpolated MONTHLY HAB concentrations 
+Seriata.SanDiego.monthly.ts <- ts(Seriata.SanDiego.Monthly$MeanSeriata,
+                   start=c(Seriata.SanDiego.fyear.monthly, Seriata.SanDiego.fmonth.monthly),
+                   frequency=12)
+
+#print(Seriata.SanDiego.monthly.ts)
+
+#decomposed time series
+Seriata.SanDiego.DailyDecomp <- stl(Seriata.SanDiego.daily.ts, s.window = "periodic")
+plot(Seriata.SanDiego.DailyDecomp)
+
+Seriata.SanDiego.MonthlyDecomp <- stl(Seriata.SanDiego.monthly.ts, s.window = "periodic")
+plot(Seriata.SanDiego.MonthlyDecomp)
+
+#Run the Mann Kendall tets
+Seriata.SanDiego.daily.MannKendall <- Kendall::MannKendall(Seriata.SanDiego.daily.ts)
+summary(Seriata.SanDiego.daily.MannKendall)
+
+Seriata.SanDiego.monthly.MannKendall <- Kendall::SeasonalMannKendall(Seriata.SanDiego.monthly.ts)
+summary(Seriata.SanDiego.monthly.MannKendall)
+
+#data visualization 
+Seriata.SanDiego.Monthly.Fig <- ggplot(Seriata.SanDiego.Monthly, aes(x = `Date`, y = `MeanSeriata`)) +  
+  geom_line() + 
+  geom_smooth(method = lm) +
+  geom_hline(yintercept=10000) +
+ labs(y = "Concentration (cells/L)", 
+subtitle = "San Diego 01/2011 - 03/2020")
+#print(Seriata.SanDiego.Monthly.Fig)
+
+#AIC - begin by removing NAs
+#Seriata.SanDiego.AIC.df <- Seriata.SanDiego.Interpolation %>%
+#  drop_na("Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )", "Silicate ( uM )", "Temp ( Celsius )")
+
+#Seriata.SanDiego.AIC <- lm(data = Seriata.SanDiego.AIC.df, InterpolatedSeriata ~ `Ammonium ( uM )` + `Nitrate ( uM )` + `Nitrite ( uM )` + `Phosphate ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
+#step(Seriata.SanDiego.AIC)
+
+#multiple regression
+#Seriata.SanDiego.multiple.regression <- lm(data = Seriata.SanDiego.AIC.df, InterpolatedSeriata ~ `Nitrate ( uM )` + `Temp ( Celsius )` + `Silicate ( uM )`)
+#summary(Seriata.SanDiego.multiple.regression)
+```
+
+```{r Pseudo-nitzschia seriata in Newport: time series and AIC, echo = FALSE}
+#specify location
+NewportPier <- hab_occ_wq %>%
+  filter(locationID == "NewportPier")
+
+#generate daily dataset
+Seriata.Newport.Days <- as.data.frame(seq(from = as.Date("2008-06-30"), to = as.Date("2021-08-30"), by = 1))
+
+#change column name
+setnames(Seriata.Newport.Days, "eventDate")
+
+#combine dataframes
+Seriata.Newport.Combined <- left_join(Seriata.Newport.Days, NewportPier, by = "eventDate")
+
+#Interpolate missing HAB values
+Seriata.Newport.Interpolation <- Seriata.Newport.Combined %>%
+  mutate(InterpolatedSeriata = zoo::na.approx(Seriata.Newport.Combined$`Pseudo-nitzschia seriata ( cells/L )`)) 
+
+#generate monthly mean df
+Seriata.Newport.Monthly <- Seriata.Newport.Interpolation %>%
+  mutate(Month = month(eventDate),
+         Year = year(eventDate)) %>%
+  mutate(Date = my(paste0(Month, "_", Year))) %>%
+  dplyr::group_by(Month, Year, Date) %>%
+  dplyr::summarise(MeanSeriata = mean(`InterpolatedSeriata`))
+
+#establish starting points
+Seriata.Newport.fmonth.daily <- month(first(Seriata.Newport.Interpolation$eventDate))
+Seriata.Newport.fyear.daily <- year(first(Seriata.Newport.Interpolation$eventDate))
+Seriata.Newport.fmonth.monthly <- month(first(Seriata.Newport.Monthly$Date))
+Seriata.Newport.fyear.monthly <- year(first(Seriata.Newport.Monthly$Date))
+
+
+#time series based on interpolated DAILY HAB concentrations 
+Seriata.Newport.daily.ts <- ts(Seriata.Newport.Interpolation$InterpolatedSeriata,
+                  start=c(Seriata.Newport.fyear.daily, Seriata.Newport.fmonth.daily),
+                  frequency=365) 
+
+#print(Seriata.Newport.daily.ts)
+
+#time series based on interpolated MONTHLY HAB concentrations 
+Seriata.Newport.monthly.ts <- ts(Seriata.Newport.Monthly$MeanSeriata,
+                   start=c(Seriata.Newport.fyear.monthly, Seriata.Newport.fmonth.monthly),
+                   frequency=12)
+
+#print(Seriata.Newport.monthly.ts)
+
+#decomposed time series
+Seriata.Newport.DailyDecomp <- stl(Seriata.Newport.daily.ts, s.window = "periodic")
+plot(Seriata.Newport.DailyDecomp)
+
+Seriata.Newport.MonthlyDecomp <- stl(Seriata.Newport.monthly.ts, s.window = "periodic")
+plot(Seriata.Newport.MonthlyDecomp)
+
+#Run the Mann Kendall tets
+Seriata.Newport.daily.MannKendall <- Kendall::MannKendall(Seriata.Newport.daily.ts)
+summary(Seriata.Newport.daily.MannKendall)
+
+Seriata.Newport.monthly.MannKendall <- Kendall::SeasonalMannKendall(Seriata.Newport.monthly.ts)
+summary(Seriata.Newport.monthly.MannKendall)
+
+#data visualization 
+Seriata.Newport.Monthly.Fig <- ggplot(Seriata.Newport.Monthly, aes(x = `Date`, y = `MeanSeriata`)) +  
+  geom_line() + 
+  geom_smooth(method = lm) +
+  geom_hline(yintercept=10000) +
+labs(y = "Concentration (cells/L)",
+subtitle = "Newport 06/2008 - 08/2021")
+#print(Seriata.Newport.Monthly.Fig)
+
+#AIC - begin by removing NAs
+#Seriata.Newport.AIC.df <- Seriata.Newport.Interpolation %>%
+#  drop_na("Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )", "Silicate ( uM )", "Temp ( Celsius )")
+
+#Seriata.Newport.AIC <- lm(data = Seriata.Newport.AIC.df, InterpolatedSeriata ~ `Ammonium ( uM )` + `Nitrate ( uM )` + `Nitrite ( uM )` + `Phosphate ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
+#step(Seriata.Newport.AIC)
+
+#multiple regression
+#Seriata.Newport.multiple.regression <- lm(data = Seriata.Newport.AIC.df, InterpolatedSeriata ~ `Nitrate ( uM )` + `Nitrite ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
+#summary(Seriata.Newport.multiple.regression)
+```
+
+```{r Pseudo-nitzschia seriata in Santa Barbara: time series and AIC, echo = FALSE}
+#specify location
+SantaBarbara <- hab_occ_wq %>%
+  filter(locationID == "StearnsWharf")
+
+#generate daily dataset
+Seriata.SantaBarbara.Days <- as.data.frame(seq(from = as.Date("2008-06-30"), to = as.Date("2021-07-12"), by = 1))
+
+#change column name
+setnames(Seriata.SantaBarbara.Days, "eventDate")
+
+#combine dataframes
+Seriata.SantaBarbara.Combined <- left_join(Seriata.SantaBarbara.Days, SantaBarbara, by = "eventDate")
+
+#Interpolate missing HAB values
+Seriata.SantaBarbara.Interpolation <- Seriata.SantaBarbara.Combined %>%
+  mutate(InterpolatedSeriata = zoo::na.approx(Seriata.SantaBarbara.Combined$`Pseudo-nitzschia seriata ( cells/L )`)) 
+#generate monthly mean df
+Seriata.SantaBarbara.Monthly <- Seriata.SantaBarbara.Interpolation %>%
+  mutate(Month = month(eventDate),
+         Year = year(eventDate)) %>%
+  mutate(Date = my(paste0(Month, "_", Year))) %>%
+  dplyr::group_by(Month, Year, Date) %>%
+  dplyr::summarise(MeanSeriata = mean(`InterpolatedSeriata`))
+
+#establish starting points
+Seriata.SantaBarbara.fmonth.daily <- month(first(Seriata.SantaBarbara.Interpolation$eventDate))
+Seriata.SantaBarbara.fyear.daily <- year(first(Seriata.SantaBarbara.Interpolation$eventDate))
+Seriata.SantaBarbara.fmonth.monthly <- month(first(Seriata.SantaBarbara.Monthly$Date))
+Seriata.SantaBarbara.fyear.monthly <- year(first(Seriata.SantaBarbara.Monthly$Date))
+
+
+#time series based on interpolated DAILY HAB concentrations 
+Seriata.SantaBarbara.daily.ts <- ts(Seriata.SantaBarbara.Interpolation$InterpolatedSeriata,
+                  start=c(Seriata.SantaBarbara.fyear.daily, Seriata.SantaBarbara.fmonth.daily),
+                  frequency=365) 
+
+#print(Seriata.SantaBarbara.daily.ts)
+
+#time series based on interpolated MONTHLY HAB concentrations 
+Seriata.SantaBarbara.monthly.ts <- ts(Seriata.SantaBarbara.Monthly$MeanSeriata,
+                   start=c(Seriata.SantaBarbara.fyear.monthly, Seriata.SantaBarbara.fmonth.monthly),
+                   frequency=12)
+
+#print(Seriata.SantaBarbara.monthly.ts)
+
+#decomposed time series
+Seriata.SantaBarbara.DailyDecomp <- stl(Seriata.SantaBarbara.daily.ts, s.window = "periodic")
+plot(Seriata.SantaBarbara.DailyDecomp)
+
+Seriata.SantaBarbara.MonthlyDecomp <- stl(Seriata.SantaBarbara.monthly.ts, s.window = "periodic")
+plot(Seriata.SantaBarbara.MonthlyDecomp)
+
+#Run the Mann Kendall tets
+Seriata.SantaBarbara.daily.MannKendall <- Kendall::MannKendall(Seriata.SantaBarbara.daily.ts)
+summary(Seriata.SantaBarbara.daily.MannKendall)
+
+Seriata.SantaBarbara.monthly.MannKendall <- Kendall::SeasonalMannKendall(Seriata.SantaBarbara.monthly.ts)
+summary(Seriata.SantaBarbara.monthly.MannKendall)
+
+#data visualization 
+Seriata.SantaBarbara.Monthly.Fig <- ggplot(Seriata.SantaBarbara.Monthly, aes(x = `Date`, y = `MeanSeriata`)) +  
+  geom_line() + 
+  geom_smooth(method = lm) +
+  geom_hline(yintercept=10000) +
+ labs(y = "Concentration (cells/L)",
+subtitle = "Santa Barbara 06/2008 - 07/2021")
+#print(Seriata.SantaBarbara.Monthly.Fig)
+
+#AIC - begin by removing NAs
+#Seriata.SantaBarbara.AIC.df <- Seriata.SantaBarbara.Interpolation %>%
+#  drop_na("Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )", "Silicate ( uM )", "Temp ( Celsius )")
+
+#Seriata.SantaBarbara.AIC <- lm(data = Seriata.SantaBarbara.AIC.df, InterpolatedSeriata ~ `Ammonium ( uM )` + `Nitrate ( uM )` + `Nitrite ( uM )` + `Phosphate ( uM )` + `Silicate ( uM )` + `Temp ( Celsius )`)
+#step(Seriata.SantaBarbara.AIC)
+
+#multiple regression
+#Seriata.SantaBarbara.multiple.regression <- lm(data = Seriata.SantaBarbara.AIC.df, InterpolatedSeriata ~ `Nitrate ( uM )` + `Nitrite ( uM )` + `Silicate ( uM )` + `Phosphate ( uM )`)
+#summary(Seriata.SantaBarbara.multiple.regression)
+```
+
+```{r combining figures, echo = FALSE}
+#other code 
+#sum(is.na(HAB_daily_df$`Dinophysis ( cells/L )`))
+#dim(HAB_daily_df)
+
+title_pn <- ggdraw() + 
+  draw_label(
+    "Mean Monthly Pseudo-nitzschia Concentrations",
+    fontface = 'bold',
+    x = 0,
+    hjust = 0
+  ) +
+  theme(
+    plot.margin = margin(0, 0, 0, 7)
+  )
+
+#cowplot
+PN.Monthly.Fig <- plot_grid(Seriata.CalPoly.Monthly.Fig + theme(legend.position = "none"), 
+                         Seriata.SantaBarbara.Monthly.Fig + theme(legend.position = "none"), 
+                         Seriata.SantaMonica.Monthly.Fig + theme(legend.position = "none"), 
+                         Seriata.Newport.Monthly.Fig + theme(legend.position = "none"),
+                         Seriata.SanDiego.Monthly.Fig + theme(legend.position = "none"),
+                         nrow = 2, align = "vh", axis = "btl")
+
+plot_grid(title_pn, PN.Monthly.Fig, ncol = 1, rel_heights = c(0.1, 1))
+
+AL.Monthly.Fig <- plot_grid(Alex.CalPoly.Monthly.Fig + theme(legend.position = "none"), 
+                         Alex.SantaBarbara.Monthly.Fig + theme(legend.position = "none"), 
+                         Alex.SantaMonica.Monthly.Fig + theme(legend.position = "none"), 
+                         Alex.Newport.Monthly.Fig + theme(legend.position = "none"),
+                         Alex.SanDiego.Monthly.Fig + theme(legend.position = "none"),
+                         nrow = 2, align = "vh", axis = "btl")
+title_al <- ggdraw() + 
+  draw_label(
+    "Mean Monthly Alexandrium Concentrations",
+    fontface = 'bold',
+    x = 0,
+    hjust = 0
+  ) +
+  theme(
+    plot.margin = margin(0, 0, 0, 7)
+  )
+plot_grid(title_al, AL.Monthly.Fig, ncol = 1, rel_heights = c(0.1, 1))
+```
+
+## Question 2
+
+```{r LMs, echo = FALSE}
+dfs <- c()
+pns <- c()
+alexs <- c()
+
+cities <- c("CalPoly", "NewportPier", "SantaMonicaPier", "ScrippsPier", "StearnsWharf")
+
+#for loop to generate plots and lms
+for (i in seq(length(cities))) {
+  
+  df <- df_habs %>% filter(location == cities[i]) %>% drop_na()
+  dfs[[i]] <- df
+  
+  pns[[i]] <- step(lm(data = df, pn ~ nh4 + no3 + no2 + po4 + sio3 + temp + month + year)) 
+  
+  alexs[[i]] <- step(lm(data = df, alex ~ nh4 + no3 + no2 + po4 + sio3 + temp + month + year))
+
+}
+
+#for loop to organize lm coefficients into dataframes
+lm_pn_cities <- c()
+
+lm_al_cities <- c()
+
+for (i in seq(length(cities))) {
+  
+  lm_pn_cities[[i]] <- as.data.frame(tidy(pns[[i]])) %>% 
+    select(term, estimate) %>% 
+    pivot_wider(names_from = term, values_from = estimate)
+  
+  lm_al_cities[[i]] <- as.data.frame(tidy(alexs[[i]])) %>% 
+    select(term, estimate) %>% 
+    pivot_wider(names_from = term, values_from = estimate)
+}
+
+pn_lms <- cbind(cities, do.call(bind_rows, lm_pn_cities)) %>% select(-"(Intercept)")
+
+write.csv(pn_lms, "./Data/Output/PN_LM_Coefficients_Cities2.csv")
+
+al_lms <- cbind(cities, do.call(bind_rows, lm_al_cities)) %>% select(-"(Intercept)")
+
+write.csv(al_lms, "./Data/Output/AL_LM_Coefficients_Cities2.csv")
+```
+
+# Summary and Conclusions
