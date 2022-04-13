@@ -92,7 +92,7 @@ write.csv(hab_occ_wq, "./Data/Processed/hab_occ_wq.csv", row.names = FALSE)
 ```
 
 ```{r CSVI}
-#CSVI data directly downloaded from NOAA NMFS Social Indicator Tool
+CSVI data directly downloaded from NOAA NMFS Social Indicator Tool
 CSVI <- read_csv("./Data/socialIndicatorData.csv") %>% filter(State == "CA", Year == 2018) %>% rename("NAME" = "Community Name") %>% select(-c("Supporting Information", "Data Series", "Year", "State", "Region"))
 
 #save processed CSVI csv
@@ -154,35 +154,22 @@ alex <- ggplot(df_habs_interp, aes(x = date, color = location)) + geom_line(aes(
 
 ```
 
-```{r glms cities}
-
-#create lms and plots of pn and alex [] for each city
-
+```{r}
 dfs <- c()
 pns <- c()
-pns_plots <- c()
 alexs <- c()
-alexs_plots <- c()
-
-cities <- c("CalPoly", "StearnsWharf", "SantaMonicaPier", "NewportPier", "ScrippsPier")
 
 #for loop to generate plots and lms
 for (i in seq(length(cities))) {
   
-  df <- df_habs_interp %>% filter(location == cities[i]) %>% drop_na()
+  df <- df_habs %>% filter(location == cities[i]) %>% drop_na()
   dfs[[i]] <- df
   
   pns[[i]] <- step(lm(data = df, pn ~ nh4 + no3 + no2 + po4 + sio3 + temp + month + year)) 
-  pns_plots[[i]] <- ggplot(df, aes(x = date, y = pn)) + geom_line() + geom_smooth(method = 'lm', se= F) + labs(title = "Pseudo. over Time", subtitle = cities[i], x = "Date", y = "Concentration (uM)")
   
   alexs[[i]] <- step(lm(data = df, alex ~ nh4 + no3 + no2 + po4 + sio3 + temp + month + year))
-  alexs_plots[[i]] <- ggplot(df, aes(x = date, y = alex)) + geom_line() + geom_smooth(method = 'lm', se = F) + labs(title = "Alex. over Time", subtitle = cities[i], x = "Date", y = "Concentration (uM)")
-  
-}
 
-#plots of pns and alexs for each city
-plot_grid(plotlist = pns_plots)
-plot_grid(plotlist = alexs_plots)
+}
 
 #for loop to organize lm coefficients into dataframes
 lm_pn_cities <- c()
@@ -200,16 +187,15 @@ for (i in seq(length(cities))) {
     pivot_wider(names_from = term, values_from = estimate)
 }
 
-#dfs of pn lms coeffs and alex lm coeffs
 pn_lms <- cbind(cities, do.call(bind_rows, lm_pn_cities)) %>% select(-"(Intercept)")
 
-write.csv(pn_lms, "./Data/Output/PN_LM_Coefficients_Cities.csv")
+write.csv(pn_lms, "./Data/Output/PN_LM_Coefficients_Cities2.csv")
 
-al_lms <- cbind(cities, do.call(bind_rows, lm_al_cities)) %>% select(-"(Intercept)")
+al_lms <- cbind(cities, do.call(bind_rows, lm_al_cities2)) %>% select(-"(Intercept)")
 
-write.csv(al_lms, "./Data/Output/AL_LM_Coefficients_Cities.csv")
+write.csv(al_lms, "./Data/Output/AL_LM_Coefficients_Cities2.csv")
+
 ```
-
 =======
 
 ```{r Alexandrium in Newport Pier: time series and AIC}
@@ -1068,3 +1054,11 @@ title_al <- ggdraw() +
   )
 plot_grid(title_al, AL.Monthly.Fig, ncol = 1, rel_heights = c(0.1, 1))
 ```
+
+
+
+
+
+
+
+
