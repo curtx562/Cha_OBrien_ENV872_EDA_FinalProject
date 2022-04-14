@@ -6,10 +6,15 @@ output: pdf_document
 editor_options: 
   chunk_output_type: console
 ---
+```{r ,include=FALSE, warning=FALSE}
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
+
+```
 
 ```{r setup, include=FALSE, warning=FALSE}
-#set &check working directory 
 
+#set &check working directory 
 getwd()
 
 # Load your packages
@@ -79,12 +84,11 @@ hab_occ_wq <- merge(hab_occ_processed, water_qual_processed, by = c('id')) %>%
   filter(eventDate >= "2006-01-01") %>%
   select(-c(`Salinity ( PSS )`, `Chl1 ( mg/m3 )`, `Chl2 ( mg/m3 )`,`Avg_Phaeo ( mg/m3 )`, `Avg_Chloro ( mg/m3 )`,`Phaeo1 ( mg/m3 )`, `Phaeo2 ( mg/m3 )`, `pDA ( ng/mL )`,`Nitrite_Nitrate ( uM )`, `Akashiwo sanguinea ( cells/L )`,`Akashiwo sanguinea ( cells/L )`, `Lingulodinium polyedra ( cells/L )`, `Pseudo-nitzschia delicatissima ( cells/L )`, `Dinophysis ( cells/L )`)) %>% filter(locationID != "SantaCruzWharf", locationID != "MontereyWharf")
 
-na <- hab_occ_wq %>% group_by(locationID) %>% summarise_all(funs(sum(is.na(.))))
+na <- hab_occ_wq %>% group_by(locationID) %>% summarise_all(funs(sum(is.na(.)))) %>% select(-c("id", "Alexandrium ( cells/L )", "Pseudo-nitzschia seriata ( cells/L )", "eventDate"))
 
 date <- hab_occ_wq %>% group_by(locationID) %>% summarise(begin = min(eventDate), end  = max(eventDate))
 
 #save processed dataframes
-write.csv(hab_events_processed, "./Data/Processed/hab_events_processed.csv", row.names = FALSE)
 write.csv(hab_occ_processed, "./Data/Processed/hab_occ_processed.csv", row.names = FALSE)
 write.csv(water_qual_processed, "./Data/Processed/water_qual_processed.csv", row.names = FALSE)
 write.csv(hab_occ_wq, "./Data/Processed/hab_occ_wq.csv", row.names = FALSE)
@@ -102,11 +106,14 @@ df_hab_table <- df_habs
 
 colnames(df_hab_table) <- c("Date", "Location", "Alex. (cells/L)", "Pseudo. (cells/L)", "NH4 (uM)", "NO3 (uM)", "NO2 (uM)", "PO4 (uM)" , "SiO3 (uM)" , "SST (C)", "Month", "Year")
 
-kable(head(df_hab_table), caption = "Table 1: First rows of processed data")
+kable(head(df_hab_table), caption = "Table 1: First rows of processed data", booktabs=TRUE, format="latex", longtable=TRUE) %>%
+  kable_styling(latex_options="HOLD_position")
 
-kable(na, caption = "Table 2: Number of NA's in processed dataset")
+kable(na, caption = "Table 2: Number of NA's in processed dataset", booktabs=TRUE, format="latex", longtable=TRUE) %>%
+  kable_styling(latex_options="scale_down")
 
-kable(date, caption = "Table 3: Date range of avaiable data for each sample location")
+kable(date, caption = "Table 3: Date range of avaiable data for each sample location", booktabs=TRUE, format="latex", longtable=TRUE) %>%
+  kable_styling(latex_options="scale_down")
 ```
 
 # Exploratory Analysis
@@ -224,9 +231,6 @@ plot_grid(title_nuts, nutrients_time, ncol= 1, rel_heights = c(0.1, 1))
 
 # Analysis 
 
-
-inspiration
-
 ## Time-Series
 
 ## Linear Regression Model
@@ -242,7 +246,7 @@ https://core.ac.uk/download/pdf/38899581.pdf
 ## Question 1
 =======
 
-```{r Alexandrium in Newport Pier: time series and AIC, echo = FALSE}
+```{r Alexandrium in Newport Pier: time series and AIC, echo = FALSE, eval = FALSE}
 #specify location
 NewportPier <- hab_occ_wq %>%
   filter(locationID == "NewportPier")
@@ -322,7 +326,7 @@ Alex.Newport.Monthly.Fig <- ggplot(Alexandrium.Newport.Monthly, aes(x = `Date`, 
 #summary(Alexandrium.Newport.regression)
 ```
 
-```{r Alexandrium in San Luis Obispo: time series and AIC, echo = FALSE}
+```{r Alexandrium in San Luis Obispo: time series and AIC, echo = FALSE, eval = FALSE}
 #specify location
 CalPoly <- hab_occ_wq %>%
   filter(locationID == "CalPoly")
@@ -403,7 +407,7 @@ subtitle = "San Luis Obispo 08/2008 - 09/2021")
 #summary(Alexandrium.CalPoly.multiple.regression )
 ```
 
-```{r Alexandrium in Santa Monica: time series and AIC, echo = FALSE}
+```{r Alexandrium in Santa Monica: time series and AIC, echo = FALSE, eval = FALSE}
 #specify location
 SantaMonica <- hab_occ_wq %>%
   filter(locationID == "SantaMonicaPier")
@@ -484,7 +488,7 @@ subtitle = "Santa Monica 06/2008 - 08/2021")
 #summary(Alexandrium.SantaMonica.regression)
 ```
 
-```{r Alexandrium in San Diego: time series and AIC, echo = FALSE}
+```{r Alexandrium in San Diego: time series and AIC, echo = FALSE, eval = FALSE}
 #specify location
 SanDiego <- hab_occ_wq %>%
   filter(locationID == "ScrippsPier")
@@ -565,7 +569,7 @@ subtitle = "San Diego 01/2011 - 03/2020")
 #summary(Alexandrium.SanDiego.regression)
 ```
 
-```{r Alexandrium in Santa Barbara: time series and AIC, echo = FALSE}
+```{r Alexandrium in Santa Barbara: time series and AIC, echo = FALSE, eval = FALSE}
 #specify location
 SantaBarbara <- hab_occ_wq %>%
   filter(locationID == "StearnsWharf")
@@ -646,7 +650,7 @@ subtitle = "Santa Barbara 06/2008 - 07/2021")
 #summary(Alexandrium.SantaBarbara.multiple.regression)
 ```
 
-```{r Pseudo-nitzschia seriata in San Luis Obispo: time series and AIC, echo = FALSE}
+```{r Pseudo-nitzschia seriata in San Luis Obispo: time series and AIC, echo = FALSE, eval = FALSE}
 #specify location
 CalPoly <- hab_occ_wq %>%
   filter(locationID == "CalPoly")
@@ -727,7 +731,7 @@ subtitle = "San Luis Obispo 8/2008 - 09/2021")
 #summary(Seriata.CalPoly.regression)
 ```
 
-```{r Pseudo-nitzschia seriata in Santa Monica: time series and AIC, echo = FALSE}
+```{r Pseudo-nitzschia seriata in Santa Monica: time series and AIC, echo = FALSE, eval = FALSE}
 #specify location
 SantaMonica <- hab_occ_wq %>%
   filter(locationID == "SantaMonicaPier")
@@ -891,7 +895,7 @@ subtitle = "San Diego 01/2011 - 03/2020")
 #summary(Seriata.SanDiego.multiple.regression)
 ```
 
-```{r Pseudo-nitzschia seriata in Newport: time series and AIC, echo = FALSE}
+```{r Pseudo-nitzschia seriata in Newport: time series and AIC, echo = FALSE, eval = FALSE}
 #specify location
 NewportPier <- hab_occ_wq %>%
   filter(locationID == "NewportPier")
@@ -973,7 +977,7 @@ subtitle = "Newport 06/2008 - 08/2021")
 #summary(Seriata.Newport.multiple.regression)
 ```
 
-```{r Pseudo-nitzschia seriata in Santa Barbara: time series and AIC, echo = FALSE}
+```{r Pseudo-nitzschia seriata in Santa Barbara: time series and AIC, echo = FALSE, eval = FALSE}
 #specify location
 SantaBarbara <- hab_occ_wq %>%
   filter(locationID == "StearnsWharf")
@@ -1104,7 +1108,8 @@ plot_grid(title_al, AL.Monthly.Fig, ncol = 1, rel_heights = c(0.1, 1))
 According to Table 3, the concentration of Pseudo-nitzschia are positively associated with Nitrite concentrations and negatively associated with Silicate concentrations across sampling locations. The variables for SST, time, and other nutrients do not show a consistent pattern across locations. The variable "Year of Sample" shows both positive and negative association with Algae concentration while Phosphate is included in only one final model for Stearns Wharf. The R-squared value for most Pseudo-nitzschia models are less than 0.10, meaning that these models explain less than 10% of the variance in the data. The final model for Santa Monica Pier yields a R-squared value of 0.26, explaining 26% of the variance in algae concentration in Santa Monica.
 
 For the Alexandrium species group, there is less consistency across sample locations. No one variable is included in each sampling location's final model. Phosphate, which is included in the final model of three locations, shows a positive association with nutrient concentration. The R-squared values for all final models of Alexandrium concentrations are below 0.05, explaining less than 5% of the variance. 
-```{r LMs, echo = FALSE}
+
+```{r LMs, eval = FALSE, echo = FALSE}
 dfs <- c()
 pns <- c()
 alexs <- c()
@@ -1149,17 +1154,28 @@ for (i in seq(length(cities))) {
   lm_al_r[i] <- summary(alexs[[i]])$r.squared
 }
 
-pn_lms <- cbind(cities, do.call(bind_rows, lm_pn_cities)) %>% select(-"(Intercept)") %>% cbind(lm_pn_r)
+pn_lms <- cbind(cities, do.call(bind_rows, lm_pn_cities)) %>% select(-"(Intercept)") %>% cbind(lm_pn_r) %>% select(cities, no3, no2, sio3, po4, temp, month, year, lm_pn_r)
+
+colnames(pn_lms) <- c("Site", "NO3", "NO2", "SiO3", "PO4" ,"Temp.", "Month", "Year", "R-sq.")
+
+#colnames(pn_lms) <- c("")
 
 write.csv(pn_lms, "./Data/Output/PN_LM_Coefficients_Cities.csv")
 
-al_lms <- cbind(cities, do.call(bind_rows, lm_al_cities)) %>% select(-"(Intercept)") %>% cbind(lm_al_r)
+al_lms <- cbind(cities, do.call(bind_rows, lm_al_cities)) %>% select(-"(Intercept)") %>% cbind(lm_al_r) %>% select(cities, no3, sio3, po4, month, year, lm_al_r)
+
+colnames(al_lms) <- c("Site", "NO3", "SiO3", "PO4", "Month", "Year", "R-sq.")
 
 write.csv(al_lms, "./Data/Output/AL_LM_Coefficients_Cities.csv")
 
-kable(pn_lms, caption = "Table 3: Coefficients for Pseudo-nitzschia Linear Models")
+```
 
-kable(pn_lms, caption = "Table 4: Coefficients for Alexandrium Linear Models")
+```{r LM Output Tables, echo = FALSE}
+kable(pn_lms, caption = "Table 3: Coefficients for Pseudo-nitzschia Linear Models", booktabs=TRUE, format="latex", longtable=TRUE) %>%
+  kable_styling(latex_options="HOLD_position")
+
+kable(pn_lms, caption = "Table 4: Coefficients for Alexandrium Linear Models", booktabs=TRUE, format="latex", longtable=TRUE) %>%
+  kable_styling(latex_options="HOLD_position")
 ```
 
 # Summary and Conclusions
