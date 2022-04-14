@@ -15,7 +15,7 @@ getwd()
 # Load your packages
 knitr::opts_chunk$set(echo = TRUE)
 library(pacman)
-pacman::p_load(tidyverse, tigris, lubridate, sf, mapview, finch, cowplot, zoo, trend, data.table, broom)
+pacman::p_load(tidyverse, tigris, lubridate, sf, mapview, finch, cowplot, zoo, trend, data.table, broom, kableExtra)
 
 # Set your ggplot theme
 mytheme <- theme_classic(base_size = 11) +
@@ -34,9 +34,22 @@ water_qual_raw <- read.delim(hab_dwca$data[3])
 write.csv(hab_occ_raw, "./Data/Raw/hab_occ_raw.csv", row.names = FALSE)
 write.csv(water_qual_raw, "./Data/Raw/water_qual_raw.csv", row.names = FALSE)
 ```
+
 # Rationale and Research Questions
+In 2015, a large Harmful Algal Bloom event known as "the Blob"  led to the closure of Dungeness Crab fisheries in the coastal states of Washington, Oregon, and California. Other related events were increased deaths of seabirds, marine mammals, other local fish species. Harmful Algal Bloom events are characterized by rapid growth, followed by rapid decay of aquatic cyanobacteria. This rapid change in biomass has ecological impacts on the ecosystem, with the potential for human health risks. In the case of California, the most common Harmful Algal Bloom species group is Pseudo-nitzchia. A byproduct of rapid growth and decay of Pseudo-nitzchia is domoic acid, which is known to cause death in marine mammals and birds. It is also the cause of Amnesic Shellfish poisoning in humans, as domoic acid is a biotoxin that accumulates in fish and shellfish. 
+
+Given the severe impacts of Harmful Algal Blooms, we develop two research questions: 1) what chemical, geographical, and physical factors set the stage for harmful algal bloom events, 2) are harmful algal blooms increasing over time. To answer these questions, we observe the harmful algae trends over time at five specific locations in Southern California.
 
 # Dataset Information
+
+The data is sourced from the regional HAB monitoring system of Southern California, which is managed by the Southern California Coastal Ocean Observing System. At five locations, weekly sampling is conducted to measure concentrations of different nutrients, sea surface temperature, salinity, and several algae species. Each water sample, for a given location on a given date, is assigned a unique ID. The biological data for each sample is contained in the “HAB Occurrences” dataset and measures the algae concentration (cells/L) of several algal species found in coastal California. The chemical and physical data is contained in the “Water Quality” dataset and measures nutrient concentration (uM), chlorophyll, toxicity, Sea Surface Temperature (SST), and Salinity. The dependent variables of this study are the algae concentrations for Pseudo-nitzschia seriata and Alexandrium ssp. These harmful algae species groups cause Amnesic Shellfish Poisoning and Paralytic Shellfish Poisoning, respectively.
+
+Data wrangling was required as the two datasets “HAB Occurrence” and “Water Quality” were long. In Water Quality, a single sample ID is represented by multiple rows, differing by the object being measured (specific nutrient, toxicity, temperature, and salinity). The pivot_wider() to widen our dataset and represent a single sample ID in one row.  The same process was used to widen the HAB Occurrence dataset. The two processed datasets were then merged by the shared sample IDs to combine chemical, physical, and biological data for each sample. The specific variables selected were the algae concentrations for Pseudo-nitzschia seriata and Alexandrium, the nutrient concentrations for Ammonium, Nitrate, Nitrite, Phosphates, and Silicates, Sea Surface Temperature, Date of Sample, Year of Sample, Month of Sample, and Location of Sample.
+
+The merged dataset contains a large number of NA values for the chemical and physical data (Table 2), however, there are no NA values for the biological data. When conducting the time series analysis on algae concentrations, interpolated values were used to create a daily dataset based on the merged dataset. When conducting the linear models, the rows with NA’s were dropped. 
+
+In addition to the presence of NA’s, each location’s dataset does not share the same time range (Table 3). The HAB monitoring system did not start in Santa Monica until 2011, while other monitoring systems of other sites started in 2008. It was decided not to reduce the dataset to maintain a shared date range between sampling locations. Since we are interested in observing site-specific trends, removing non-NA data would remove potentially useful information in the study.
+
 ```{r data wrangling, echo = FALSE}
 #only certain species are of interest: Akashi sanguinea (reported fish and bird kills), Alexandriua (causes paralytic shellfish poisoning), cochlodinium (fish kills), dinophysis and lingulodinium (diarrhetic shellfish poisoining), and pseudo-nitzhcia (amnesic shellfishing poisoning)
 #source: https://calhabmap.org/prorocentrum-spp
@@ -79,6 +92,7 @@ write.csv(hab_events_processed, "./Data/Processed/hab_events_processed.csv", row
 write.csv(hab_occ_processed, "./Data/Processed/hab_occ_processed.csv", row.names = FALSE)
 write.csv(water_qual_processed, "./Data/Processed/water_qual_processed.csv", row.names = FALSE)
 write.csv(hab_occ_wq, "./Data/Processed/hab_occ_wq.csv", row.names = FALSE)
+
 ```
 
 ```{r prelim data analysis, echo = FALSE}
@@ -92,10 +106,16 @@ df_hab_table <- df_habs
 
 colnames(df_hab_table) <- c("Date", "Location", "Alex. (cells/L)", "Pseudo. (cells/L)", "NH4 (uM)", "NO3 (uM)", "NO2 (uM)", "PO4 (uM)" , "SiO3 (uM)" , "SST (C)", "Month", "Year")
 
-knitr::kable(head(df_hab_table), caption = "Table of Processed Data")
+kable(head(df_hab_table), caption = "Table 1: First rows of processed data")
+
+kable(na, caption = "Table 2: Number of NA's in processed dataset")
+
+kable(date, caption = "Table 3: Date range of avaiable data for each sample location")
 ```
 
-# Exploratory Analysis  
+# Exploratory Analysis
+
+The preliminary analysis showed the relationships between algal concentrations location and temperature, temperature and location, and various nutrient concentrations over time. Figure 1 shows the change of Pseudo-nitzschia and Alexandrium over time and by temperature. 
 
 ```{r Exploratory Analysis, echo = FALSE}
 #prelim plots of sst, pn, and alex over time, grouped by location
@@ -120,8 +140,7 @@ scatter_alex_t <- ggplot(df_habs, aes(x = temp,y = alex, color = location)) +
 title_pn1 <- ggdraw() + 
   draw_label(
     "Pseudo-nitzchia ssp.",
-    fontface = 'bold',
-    x = 0,
+    x = 0.02,
     hjust = 0
   ) +
   theme(plot.margin = margin(0, 0, 0, 7)
@@ -130,8 +149,7 @@ title_pn1 <- ggdraw() +
 title_al1 <- ggdraw() + 
   draw_label(
     "Alexandrium ssp.",
-    fontface = 'bold',
-    x = 0,
+    x = 0.02,
     hjust = 0
   ) +
   theme(plot.margin = margin(0, 0, 0, 7)
@@ -140,7 +158,7 @@ title_al1 <- ggdraw() +
 pn_explore <- plot_grid(boxplot_pn, scatter_pn_t, labels = "AUTO", align = "h",
   label_size = 12,
   label_x = 0, label_y = 0,
-  hjust = -4, vjust = -4)
+  hjust = -4, vjust = -2)
 
 alex_explore <- plot_grid(boxplot_alex, scatter_alex_t , labels = "AUTO", align = "h",
   label_size = 12,
@@ -151,34 +169,53 @@ explore1 <- plot_grid(title_pn1, pn_explore,ncol = 1, rel_heights = c(0.1,1))
 
 explore2 <- plot_grid(title_al1, alex_explore,ncol = 1, rel_heights = c(0.1,1))
 
-plot_grid(explore1, explore2, ncol = 1)
+title_all <- ggdraw() + 
+  draw_label(
+    "Figure 1: Algal Concentrations by Location and Temperature",
+    fontface = 'bold',
+    x = 0,
+    hjust = 0
+  ) +
+  theme(plot.margin = margin(0, 0, 0, 7)
+  )
 
-legend <- get_legend(scatter_alex_t)
+plot_grid(title_all, explore1, explore2, ncol = 1, rel_heights = c(0.1,1,1))
 
-plot_grid(explore_3, legend, rel_widths = c(1, .1))
+sst <- ggplot(df_habs, aes(x = reorder(location, temp))) + geom_boxplot(aes(y = temp)) + labs(title = "Figure 2: SST Over Time", y ="Temperature (C)", x = "Locations", color = "Location") + theme(legend.spacing.y = unit(0, "mm"),
+        legend.background = element_blank(),
+        legend.box.background = element_rect(colour = "black")) #+ theme(axis.text.x = element_text(angle =20, hjust = 1))
 
+
+sst
 ```
 
 ```{r Exploratory Analysis 2, echo = FALSE}
 
-nh4 <- ggplot(df_habs_interp, aes(x = date, color = location)) + geom_line(aes(y = nh4)) + labs(subtitle = "NH4", y ="uM", x = "Date", color = "Location") +  theme(axis.title.x = element_blank(), legend.spacing.y = unit(0, "mm"),
+nh4 <- ggplot(df_habs, aes(x = date, color = location)) + geom_line(aes(y = nh4)) + labs(subtitle = "NH4", y ="uM", x = "Date", color = "Location") +  theme(axis.title.x = element_blank(), legend.spacing.y = unit(0, "mm"),
         legend.background = element_blank(),
         legend.box.background = element_rect(colour = "black"))
 
-no3 <- ggplot(df_habs_interp, aes(x = date, color = location)) + geom_line(aes(y = no3)) + labs(subtitle = "NO3", y ="Temperature (C)", x = "Date", color = "Location") +  theme(axis.title.x = element_blank(), axis.title.y = element_blank(), legend.position="none")
+no3 <- ggplot(df_habs, aes(x = date, color = location)) + geom_line(aes(y = no3)) + labs(subtitle = "NO3", y ="Temperature (C)", x = "Date", color = "Location") +  theme(axis.title.x = element_blank(), axis.title.y = element_blank(), legend.position="none")
 
-no2 <- ggplot(df_habs_interp, aes(x = date, color = location)) + geom_line(aes(y = no2)) + labs(subtitle = "NO2", y ="Temperature (C)", x = "Date", color = "Location") +  theme(axis.title.x = element_blank(), axis.title.y = element_blank(), legend.position="none")
+no2 <- ggplot(df_habs, aes(x = date, color = location)) + geom_line(aes(y = no2)) + labs(subtitle = "NO2", y ="Temperature (C)", x = "Date", color = "Location") +  theme(axis.title.x = element_blank(), axis.title.y = element_blank(), legend.position="none")
 
-po4 <- ggplot(df_habs_interp, aes(x = date, color = location)) + geom_line(aes(y = po4)) + labs(subtitle = "PO4", y ="uM", x = "Date", color = "Location") +  theme( legend.position="none")
+po4 <- ggplot(df_habs, aes(x = date, color = location)) + geom_line(aes(y = po4)) + labs(subtitle = "PO4", y ="uM", x = "Date", color = "Location") +  theme( legend.position="none")
 
-sio3 <- ggplot(df_habs_interp, aes(x = date, color = location)) + geom_line(aes(y = sio3)) + labs(subtitle = "SiO3", y ="Temperature (C)", x = "Date", color = "Location") +  theme(axis.title.y = element_blank(),legend.position="none") 
+sio3 <- ggplot(df_habs, aes(x = date, color = location)) + geom_line(aes(y = sio3)) + labs(subtitle = "SiO3", y ="Temperature (C)", x = "Date", color = "Location") +  theme(axis.title.y = element_blank(),legend.position="none") 
 
-sst <- ggplot(df_habs_interp, aes(x = date, color = location)) + geom_line(aes(y = temp)) + labs(title = "SST Over Time", y ="Temperature (C)", x = "Date", color = "Location") + theme(legend.spacing.y = unit(0, "mm"),
-        legend.background = element_blank(),
-        legend.box.background = element_rect(colour = "black"))
-plot_grid(nh4 + theme(legend.position = "none"), no3, no2, po4, sio3, get_legend(nh4))
+title_nuts <- ggdraw() + 
+  draw_label(
+    "Figure 3: Algal Concentrations by Location and Temperature",
+    fontface = 'bold',
+    x = 0,
+    hjust = 0
+  ) +
+  theme(plot.margin = margin(0, 0, 0, 7)
+  )
 
-sst
+nutrients_time <- plot_grid(nh4 + theme(legend.position = "none"), no3, no2, po4, sio3, get_legend(nh4))
+
+plot_grid(title_nuts, nutrients_time, ncol= 1, rel_heights = c(0.1, 1))
 
 ```
 
