@@ -23,7 +23,7 @@ mytheme <- theme_classic(base_size = 11) +
 theme_set(mytheme)
 ```
 
-```{r data input}
+```{r data input, echo = FALSE}
 # use finch package to read in the Darwin core archive file format
 hab_dwca <- dwca_read("https://www1.usgs.gov/obis-usa/ipt/archive.do?r=calhabmap&v=1.3")
 
@@ -79,7 +79,7 @@ hab_occ_wq <- merge(hab_occ_processed, water_qual_processed, by = c('id')) %>%
   select(-c(`Salinity ( PSS )`, `Chl1 ( mg/m3 )`, `Chl2 ( mg/m3 )`,`Avg_Phaeo ( mg/m3 )`, `Avg_Chloro ( mg/m3 )`,`Phaeo1 ( mg/m3 )`, `Phaeo2 ( mg/m3 )`, `pDA ( ng/mL )`,`Nitrite_Nitrate ( uM )`, datum, `Akashiwo sanguinea ( cells/L )`,`Akashiwo sanguinea ( cells/L )`, `Lingulodinium polyedra ( cells/L )`, `Pseudo-nitzschia delicatissima ( cells/L )`, `Dinophysis ( cells/L )`)) %>% filter(locationID != "SantaCruzWharf", locationID != "MontereyWharf")
 
 #monterey and sc have lots of na's, will drop
-na <- hab_occ_wq %>% group_by(locationID) %>% summarise_all(funs(sum(is.na(.))))
+na <- hab_occ_wq %>% group_by(locationID) %>% summarise_all(funs(sum(is.na(.)))) %>% select(-c("id", "Alexandrium ( cells/L )", "Pseudo-nitzschia seriata ( cells/L )", "eventDate"))
 
 mapview(hab_occ_wq)
 
@@ -187,13 +187,23 @@ for (i in seq(length(cities))) {
     pivot_wider(names_from = term, values_from = estimate)
 }
 
-pn_lms <- cbind(cities, do.call(bind_rows, lm_pn_cities)) %>% select(-"(Intercept)")
+lm_pn_r <- c()
+lm_al_r <- c()
 
-write.csv(pn_lms, "./Data/Output/PN_LM_Coefficients_Cities2.csv")
+for (i in seq(length(cities))) {
+  
+  lm_pn_r[i] <- summary(pns[[i]])$r.squared
+  
+  lm_al_r[i] <- summary(alexs[[i]])$r.squared
+}
 
-al_lms <- cbind(cities, do.call(bind_rows, lm_al_cities2)) %>% select(-"(Intercept)")
+pn_lms <- cbind(cities, do.call(bind_rows, lm_pn_cities)) %>% select(-"(Intercept)") %>% cbind(lm_pn_r)
 
-write.csv(al_lms, "./Data/Output/AL_LM_Coefficients_Cities2.csv")
+write.csv(pn_lms, "./Data/Output/PN_LM_Coefficients_Cities.csv")
+
+al_lms <- cbind(cities, do.call(bind_rows, lm_al_cities)) %>% select(-"(Intercept)") %>% cbind(lm_al_r)
+
+write.csv(al_lms, "./Data/Output/AL_LM_Coefficients_Cities.csv")
 
 ```
 =======
