@@ -15,7 +15,7 @@ getwd()
 # Load your packages
 knitr::opts_chunk$set(echo = TRUE)
 library(pacman)
-pacman::p_load(tidyverse, tigris, lubridate, sf, mapview, finch, cowplot, zoo, trend, data.table, broom, kableExtra)
+pacman::p_load(tidyverse, lubridate, finch, cowplot, zoo, trend, data.table, broom, kableExtra)
 
 # Set your ggplot theme
 mytheme <- theme_classic(base_size = 11) +
@@ -42,9 +42,9 @@ Given the severe impacts of Harmful Algal Blooms, we develop two research questi
 
 # Dataset Information
 
-The data is sourced from the regional HAB monitoring system of Southern California, which is managed by the Southern California Coastal Ocean Observing System. At five locations, weekly sampling is conducted to measure concentrations of different nutrients, sea surface temperature, salinity, and several algae species. Each water sample, for a given location on a given date, is assigned a unique ID. The biological data for each sample is contained in the “HAB Occurrences” dataset and measures the algae concentration (cells/L) of several algal species found in coastal California. The chemical and physical data is contained in the “Water Quality” dataset and measures nutrient concentration (uM), chlorophyll, toxicity, Sea Surface Temperature (SST), and Salinity. The dependent variables of this study are the algae concentrations for Pseudo-nitzschia seriata and Alexandrium ssp. These harmful algae species groups cause Amnesic Shellfish Poisoning and Paralytic Shellfish Poisoning, respectively.
+The data is sourced from the regional HAB monitoring system of Southern California, which is managed by the Southern California Coastal Ocean Observing System. At five locations, weekly sampling is conducted to measure concentrations of different nutrients, sea surface temperature, salinity, and several algae species. Each water sample, for a given location on a given date, is assigned a unique ID. The biological data for each sample is contained in the “HAB Occurrences” dataset and measures the algae concentration (cells/L) of several algal species found in coastal California. The chemical and physical data is contained in the “Water Quality” dataset and measures nutrient concentration (uM), chlorophyll, toxicity, Sea Surface Temperature (SST), and Salinity. The dependent variables of this study are the algae concentrations for Pseudo-nitzschia seriata and Alexandrium ssp. These harmful algae species groups cause Amnesic Shellfish Poisoning and Paralytic Shellfish Poisoning, respectively. 
 
-Data wrangling was required as the two datasets “HAB Occurrence” and “Water Quality” were long. In Water Quality, a single sample ID is represented by multiple rows, differing by the object being measured (specific nutrient, toxicity, temperature, and salinity). The pivot_wider() to widen our dataset and represent a single sample ID in one row.  The same process was used to widen the HAB Occurrence dataset. The two processed datasets were then merged by the shared sample IDs to combine chemical, physical, and biological data for each sample. The specific variables selected were the algae concentrations for Pseudo-nitzschia seriata and Alexandrium, the nutrient concentrations for Ammonium, Nitrate, Nitrite, Phosphates, and Silicates, Sea Surface Temperature, Date of Sample, Year of Sample, Month of Sample, and Location of Sample.
+The original data is stored in a Darwin Core Archive and the dwca_read() function form the "finch" packaged was used to extract the two datasets: "HAB Occurence" and "Water Quality". Wrangling was required as the two datasets are long. In Water Quality, a single sample ID is represented by multiple rows, differing by the object being measured (specific nutrient, toxicity, temperature, and salinity). The pivot_wider() was used to widen our dataset and represent a single sample ID in one row.  The same process was used to widen the HAB Occurrence dataset. The two processed datasets were then merged by the shared sample IDs to combine chemical, physical, and biological data for each sample. The specific variables selected were the algae concentrations for Pseudo-nitzschia seriata and Alexandrium, the nutrient concentrations for Ammonium, Nitrate, Nitrite, Phosphates, and Silicates, Sea Surface Temperature (SST), Date of Sample, Year of Sample, Month of Sample, and Location of Sample.
 
 The merged dataset contains a large number of NA values for the chemical and physical data (Table 2), however, there are no NA values for the biological data. When conducting the time series analysis on algae concentrations, interpolated values were used to create a daily dataset based on the merged dataset. When conducting the linear models, the rows with NA’s were dropped. 
 
@@ -54,10 +54,7 @@ In addition to the presence of NA’s, each location’s dataset does not share 
 #only certain species are of interest: Akashi sanguinea (reported fish and bird kills), Alexandriua (causes paralytic shellfish poisoning), cochlodinium (fish kills), dinophysis and lingulodinium (diarrhetic shellfish poisoining), and pseudo-nitzhcia (amnesic shellfishing poisoning)
 #source: https://calhabmap.org/prorocentrum-spp
 
-#clean up hab_occ, look only at specific species of algae (cause fish kills or human health risks), Cochlodinium has lots of na's, SantaCruzWharf does not measure Akashiwo, Lingodinium, and P. neutzchia delicat. drop Cochlodinum and Santa Cruz (we have Monterey just south of the SantaCruz wharf) 
-#continuous dates:latest start date is SantaCruzWharf 2011-10-05 , earliest final date is Scripps 2020-03-02
-
-#ERDAPP has the more updated data but still limited by Monterey's monitoring dataset (goes up to 03-2020 only)
+#Region of Southern California, Monterey and Santa Cruz are considered "Central" California and will not be included.
 
 hab_occ_processed <- hab_occ_raw %>% 
   mutate(species = paste(scientificName, "(", organismQuantityType, ")")) %>% 
@@ -74,7 +71,7 @@ water_qual_processed <- water_qual_raw %>%
 
 #combined hab_occ and water_quality to biological, chemical, and physical data for each given location/time. Location and time data were extracted from the eventID string, and long/lat taken from hab_events df, then converted to sf
 
-#try looking at all the water_quality. remove pDA (biotoxin of pseudo-nitzchia), phaeo, chlorophyll because they are byproducts of HABs (just want to use HAB concentrations as measurement of HAB), salinity because too many NA's. chose not to fill in HAB data. Chose to look only at P_ser and Alexandrium (Amenisic Shellfish Poisoning, Paralytic Shellfish Poisoning environmental health risks)
+#try looking at all the water_quality. remove pDA (biotoxin of pseudo-nitzchia), phaeo, chlorophyll because they are byproducts of HABs (just want to use HAB concentrations as measurement of HAB), salinity because too many NA's. Chose to look only at P_ser and Alexandrium (Ameneisic Shellfish Poisoning, Paralytic Shellfish Poisoning environmental health risks)
 
 hab_occ_wq <- merge(hab_occ_processed, water_qual_processed, by = c('id')) %>% 
   mutate(locationID = str_extract(id, "[^HABs-](\\w+)(?=_)"), 
@@ -82,7 +79,6 @@ hab_occ_wq <- merge(hab_occ_processed, water_qual_processed, by = c('id')) %>%
   filter(eventDate >= "2006-01-01") %>%
   select(-c(`Salinity ( PSS )`, `Chl1 ( mg/m3 )`, `Chl2 ( mg/m3 )`,`Avg_Phaeo ( mg/m3 )`, `Avg_Chloro ( mg/m3 )`,`Phaeo1 ( mg/m3 )`, `Phaeo2 ( mg/m3 )`, `pDA ( ng/mL )`,`Nitrite_Nitrate ( uM )`, `Akashiwo sanguinea ( cells/L )`,`Akashiwo sanguinea ( cells/L )`, `Lingulodinium polyedra ( cells/L )`, `Pseudo-nitzschia delicatissima ( cells/L )`, `Dinophysis ( cells/L )`)) %>% filter(locationID != "SantaCruzWharf", locationID != "MontereyWharf")
 
-#monterey and sc have lots of na's, will drop
 na <- hab_occ_wq %>% group_by(locationID) %>% summarise_all(funs(sum(is.na(.))))
 
 date <- hab_occ_wq %>% group_by(locationID) %>% summarise(begin = min(eventDate), end  = max(eventDate))
@@ -98,7 +94,7 @@ write.csv(hab_occ_wq, "./Data/Processed/hab_occ_wq.csv", row.names = FALSE)
 ```{r prelim data analysis, echo = FALSE}
 df_habs <- hab_occ_wq %>% 
   mutate(month = month(eventDate), year = year(eventDate)) %>% 
-  select(eventDate, locationID, "Alexandrium ( cells/L )", "Pseudo-nitzschia seriata ( cells/L )", "Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )" , "Silicate ( uM )" , "Temp ( Celsius )", "month", "year") %>% drop_na()
+  select(eventDate, locationID, "Alexandrium ( cells/L )", "Pseudo-nitzschia seriata ( cells/L )", "Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )" , "Silicate ( uM )" , "Temp ( Celsius )", "month", "year")
 
 colnames(df_habs) <- c("date", "location", "alex", "pn", "nh4", "no3", "no2", "po4" , "sio3" , "temp", "month", "year")
 
@@ -115,7 +111,7 @@ kable(date, caption = "Table 3: Date range of avaiable data for each sample loca
 
 # Exploratory Analysis
 
-The preliminary analysis showed the relationships between algal concentrations location and temperature, temperature and location, and various nutrient concentrations over time. Figure 1 shows the change of Pseudo-nitzschia and Alexandrium over time and by temperature. 
+The preliminary analysis showed the relationships between algal concentrations location and temperature, temperature and location, and various nutrient concentrations over time. Figure 1 shows the change of Pseudo-nitzschia and Alexandrium over time and by temperature. For both algal species, concentrations are often 0 cells/L for across all sampling locations. However, Cal Poly Pier, Newport Pier, and Santa Monica Pier have higher ranges in Pseudo-nitzschia concentrations than other location. For Alexandrium concentrations, Cal Poly Pier and Newport Pier have higher ranges. The second column of graphs in Figure 1 indicate that higher algal concentrations occur at SST's between 10 degrees Celsius and 20 degrees Celsius for both algal species group. 
 
 ```{r Exploratory Analysis, echo = FALSE}
 #prelim plots of sst, pn, and alex over time, grouped by location
@@ -180,16 +176,23 @@ title_all <- ggdraw() +
   )
 
 plot_grid(title_all, explore1, explore2, ncol = 1, rel_heights = c(0.1,1,1))
+```
+
+Figure 2 shows the relationship between location and recorded SST. CalPoly and Stearns Wharf have lower SST's thant that of Newport Pier, Santa Monica Pier, and Scripps Pier. This could be due to the latitudinal position of each sampling site, as cold water moves southward along the North American West Coast. 
+
+```{r Exploratory Analysis Part 2 SST, echo = FALSE}
 
 sst <- ggplot(df_habs, aes(x = reorder(location, temp))) + geom_boxplot(aes(y = temp)) + labs(title = "Figure 2: SST Over Time", y ="Temperature (C)", x = "Locations", color = "Location") + theme(legend.spacing.y = unit(0, "mm"),
         legend.background = element_blank(),
-        legend.box.background = element_rect(colour = "black")) #+ theme(axis.text.x = element_text(angle =20, hjust = 1))
+        legend.box.background = element_rect(colour = "black"))
 
 
 sst
 ```
 
-```{r Exploratory Analysis 2, echo = FALSE}
+Figure 3 shows nutrient concentrations over time for each sampling site. For Ammonium (NH4), Nitrate (NO3), and SiO3 (Silicate), there is indication of seasonality as certain times of the year are associated with peaks in nutrient concentrations. Ammonium shows an increase concentration spikes over time at Stearns Wharf while Nitrite shows an increase in concentration spikes at Santa Monica Pier. For Phosphate, most samples have a nutrient concentration of 0 micro-Molar, except for Santa Monica. For Silicates in CalPloy, the data gaps can be observed pre-2010. Referring to Table 1, the NA values of the dataset are found in recorded nutrient concentrations and SST.
+
+```{r Exploratory Analysis Part 3, echo = FALSE}
 
 nh4 <- ggplot(df_habs, aes(x = date, color = location)) + geom_line(aes(y = nh4)) + labs(subtitle = "NH4", y ="uM", x = "Date", color = "Location") +  theme(axis.title.x = element_blank(), legend.spacing.y = unit(0, "mm"),
         legend.background = element_blank(),
@@ -205,7 +208,7 @@ sio3 <- ggplot(df_habs, aes(x = date, color = location)) + geom_line(aes(y = sio
 
 title_nuts <- ggdraw() + 
   draw_label(
-    "Figure 3: Algal Concentrations by Location and Temperature",
+    "Figure 3: Nutrient Concentrations by Location and Temperature",
     fontface = 'bold',
     x = 0,
     hjust = 0
@@ -221,6 +224,17 @@ plot_grid(title_nuts, nutrients_time, ncol= 1, rel_heights = c(0.1, 1))
 
 # Analysis 
 
+
+inspiration
+
+## Time-Series
+
+## Linear Regression Model
+
+To answer Question 2, a Time-Series Analysis was conducted to observe any variables of significance in determining algal concentrations. The processed data set was split into several groups by location and algal species. For each group, a linear model was conducted using the same full model (Algae concentration ~ Ammonium + Nitrate + Nitrite + Phosphates + Silicates + Temperature + Month of Sample + Year of Sample) using the "lm" R function. Since Phosphorous, Nitrogen, and Silica compounds are used in algal growth processes, these five nutrient concentrations were selected for the full models. Temperature, Month, and Year were selected to include the relationship between SST and time on algal growth or decline. Salinity was omitted from this model due to the higher number of NA's in the dataset. Based on a model's Aikaikie Information Criterion (AIC), a model would be reduced (using the backwards step method) to its most parsimonious version. Two tables of the linear model summaries were created using the tidy() function from the "broom" package". The variables of each final model, the included variable's coefficients, and the R-squared value of the final model are represented in Tables 3 and 4.
+
+Source: https://www.epa.gov/nutrientpollution/issue
+https://core.ac.uk/download/pdf/38899581.pdf
 
 
 # Results
@@ -1085,8 +1099,11 @@ title_al <- ggdraw() +
 plot_grid(title_al, AL.Monthly.Fig, ncol = 1, rel_heights = c(0.1, 1))
 ```
 
-## Question 2
+## Question 2: 
 
+According to Table 3, the concentration of Pseudo-nitzschia are positively associated with Nitrite concentrations and negatively associated with Silicate concentrations across sampling locations. The variables for SST, time, and other nutrients do not show a consistent pattern across locations. The variable "Year of Sample" shows both positive and negative association with Algae concentration while Phosphate is included in only one final model for Stearns Wharf. The R-squared value for most Pseudo-nitzschia models are less than 0.10, meaning that these models explain less than 10% of the variance in the data. The final model for Santa Monica Pier yields a R-squared value of 0.26, explaining 26% of the variance in algae concentration in Santa Monica.
+
+For the Alexandrium species group, there is less consistency across sample locations. No one variable is included in each sampling location's final model. Phosphate, which is included in the final model of three locations, shows a positive association with nutrient concentration. The R-squared values for all final models of Alexandrium concentrations are below 0.05, explaining less than 5% of the variance. 
 ```{r LMs, echo = FALSE}
 dfs <- c()
 pns <- c()
@@ -1122,13 +1139,29 @@ for (i in seq(length(cities))) {
     pivot_wider(names_from = term, values_from = estimate)
 }
 
-pn_lms <- cbind(cities, do.call(bind_rows, lm_pn_cities)) %>% select(-"(Intercept)")
+lm_pn_r <- c()
+lm_al_r <- c()
 
-write.csv(pn_lms, "./Data/Output/PN_LM_Coefficients_Cities2.csv")
+for (i in seq(length(cities))) {
+  
+  lm_pn_r[i] <- summary(pns[[i]])$r.squared
+  
+  lm_al_r[i] <- summary(alexs[[i]])$r.squared
+}
 
-al_lms <- cbind(cities, do.call(bind_rows, lm_al_cities)) %>% select(-"(Intercept)")
+pn_lms <- cbind(cities, do.call(bind_rows, lm_pn_cities)) %>% select(-"(Intercept)") %>% cbind(lm_pn_r)
 
-write.csv(al_lms, "./Data/Output/AL_LM_Coefficients_Cities2.csv")
+write.csv(pn_lms, "./Data/Output/PN_LM_Coefficients_Cities.csv")
+
+al_lms <- cbind(cities, do.call(bind_rows, lm_al_cities)) %>% select(-"(Intercept)") %>% cbind(lm_al_r)
+
+write.csv(al_lms, "./Data/Output/AL_LM_Coefficients_Cities.csv")
+
+kable(pn_lms, caption = "Table 3: Coefficients for Pseudo-nitzschia Linear Models")
+
+kable(pn_lms, caption = "Table 4: Coefficients for Alexandrium Linear Models")
 ```
 
 # Summary and Conclusions
+
+According to the linear models, Pseudo-Nitzchia concentrations are positively associated with Nitrite and negatively associated with Silicates. Alexandrium concentrations in select sites are positively associated with Phosphates. It is important to note that these linear models do not explain much of the variance. Moving forward, there should be more review on the interactions of algal species and nutrients. When algae species grow, they consume the nutrients in the water column and reduce the overall nutrient concentration. The complication of this interaction could be removed by averaging the nutrient concentration for the week or month, and the relationship between average nutrient concentration and average algae concentration could be studied. We could also convert the algae concentration data into Poisson data. According to the Southern California Coastal Ocean Observing System, a "bloom" event for Pseudo-nitzschia occurs when algae concentrations for this group exceed 10,000 cells/L. A "count" of HAB events over a period of time and the relationship with the average SST and nutrient concentrations could be studied.
