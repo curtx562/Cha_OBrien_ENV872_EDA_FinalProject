@@ -1,3 +1,4 @@
+
 ---
 title: "HABs_Cleanup"
 author: "Curtis Cha & Bryce O'Brien"
@@ -356,6 +357,7 @@ Alex.CalPoly.Monthly.Fig <- ggplot(Alexandrium.CalPoly.Monthly, aes(x = `Date`, 
   geom_hline(yintercept=100) +
 labs(y = "Concentration (cells/L)", 
 subtitle = "San Luis Obispo 08/2008 - 09/2021")
+print(Alex.CalPoly.Monthly.Fig)
 
 #AIC - begin by removing NAs
 #Alexandrium.CalPoly.AIC.df <- Alexandrium.CalPoly.Interpolation %>%
@@ -435,9 +437,11 @@ Alex.SantaMonica.Monthly.Fig <- ggplot(Alexandrium.SantaMonica.Monthly, aes(x = 
   geom_line() + 
   geom_smooth(method = lm) +
   geom_hline(yintercept=100) +
+  ylim(0, 600) +
  labs(y = "Concentration (cells/L)",
 subtitle = "Santa Monica 06/2008 - 08/2021")
 
+print(Alex.SantaMonica.Monthly.Fig) 
 #AIC - begin by removing NAs
 #Alexandrium.SantaMonica.AIC.df <- Alexandrium.SantaMonica.Interpolation %>%
 #  drop_na("Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )", "Silicate ( uM )", "Temp ( Celsius )")
@@ -587,6 +591,9 @@ plot(Alexandrium.SantaBarbara.MonthlyDecomp)
 
 #Run the Mann Kendall tets
 Alexandrium.SantaBarbara.daily.MannKendall <- Kendall::MannKendall(Alexandrium.SantaBarbara.daily.ts)
+<<<<<<< HEAD
+summary(Alexandrium.SantaBa
+=======
 summary(Alexandrium.SantaBarbara.daily.MannKendall)
 
 Alexandrium.SantaBarbara.monthly.MannKendall <- Kendall::SeasonalMannKendall(Alexandrium.SantaBarbara.monthly.ts)
@@ -1072,3 +1079,4 @@ plot_grid(title_al, AL.Monthly.Fig, ncol = 1, rel_heights = c(0.1, 1))
 
 
 
+>>>>>>> 9d4f2db36328055ae404646be1599f550951f2aa
