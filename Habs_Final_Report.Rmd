@@ -2,7 +2,6 @@
 output: 
   pdf_document:
       keep_tex: yes
-      toc: true
       fig_caption: yes
       number_sections: true
 geometry: margin = 2.54cm
@@ -12,19 +11,20 @@ author: "Curtis Cha & Bryce O'Brien"
 fontsize: 12pt
 mainfont: Times New Roman
 date: "3/23/2022"
-
-
 editor_options: 
   chunk_output_type: console
 ---
-```{r ,include=FALSE, warning=FALSE}
+\newpage
+\tableofcontents
+\newpage
+```{r ,include=FALSE, warning=FALSE, message = FALSE}
 library(knitr)
 opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
 ```
 
-```{r setup, include=FALSE, warning=FALSE}
+```{r setup, include=FALSE, warning=FALSE, message = FALSE}
 #set & check working directory 
-setwd("Z:/O'Brien R script/CalHabMap_FishCSVI")
+setwd("../Cha_OBrien_ENV872_EDA_FinalProject")
 getwd()
 
 # Load your packages
@@ -34,11 +34,17 @@ pacman::p_load(tidyverse, lubridate, finch, cowplot, zoo, trend, broom, data.tab
 
 # Set your ggplot theme
 mytheme <- theme_classic(base_size = 11) +
-  theme(axis.text = element_text(color = "black"), plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), plot.caption = element_text(hjust = 0.5))
+  theme(axis.text = element_text(color = "black"), 
+        plot.title = element_text(hjust = 0.5, element_text(face="bold")),
+        plot.subtitle = element_text(size=8, hjust=0.2),
+        plot.caption = element_text(hjust = 0.5), 
+        legend.spacing.y = unit(0, "mm"), 
+        legend.background = element_blank(), 
+        legend.box.background = element_rect(colour = "black"))
 theme_set(mytheme)
 ```
 
-```{r data input, echo = FALSE}
+```{r data input, echo = FALSE, message = FALSE}
 # use finch package to read in the Darwin core archive file format
 hab_dwca <- dwca_read("https://www1.usgs.gov/obis-usa/ipt/archive.do?r=calhabmap&v=1.3")
 
@@ -66,13 +72,15 @@ write.csv(water_qual_raw, "./Data/Raw/water_qual_raw.csv", row.names = FALSE)
 
   Each water sample, for each location and date, is assigned a unique ID. The biological data for each sample is contained in the “HAB Occurrences” dataset and measures the algae concentration (cells/L) of several algal species found in coastal California. The chemical and physical data is contained in the “Water Quality” dataset and measures nutrient concentration (uM), chlorophyll, toxicity, sea surface temperature (SST), and salinity. The dependent variables of this study are the algae concentrations of Pseudo-nitzschia seriata ("seriata" refers to the larger size class of Pseudo-nitzschia, which is generally a more toxigenic group within the genus) and Alexandrium spp. These harmful algae species groups cause amnesic shellfish poisoning and paralytic shellfish poisoning, respectively. 
 
-  The original data is stored in a Darwin Core Archive and the dwca_read() function from the "finch" package was used to extract the two datasets: "HAB Occurence" and "Water Quality". Wrangling was required as the two datasets are long and contain unwanted information. In the “Water Quality” dataset, a single sample ID is represented by multiple rows, differing by the object being measured (specific nutrient, toxicity, temperature, and salinity). The pivot_wider() was used to widen our dataset and represent a single sample ID in one row.  The same process was used to widen the HAB Occurrence dataset. The two processed datasets were then merged by the shared sample IDs to combine chemical, physical, and biological data for each sample. The specific variables selected were the algae concentrations for Pseudo-nitzschia seriata and Alexandrium, the nutrient concentrations for ammonium, nitrate, nitrite, phosphates, and silicates, sea surface temperature (sst), date of sample, year of sample, month of sample, and location of sample.
+  The original data is stored in a Darwin Core Archive and the dwca_read() function from the "finch" package was used to extract the two datasets: "HAB Occurence" and "Water Quality". Wrangling was required as the two datasets are long and contain unwanted information. In the “Water Quality” dataset, a single sample ID is represented by multiple rows, differing by the object being measured (specific nutrient, toxicity, temperature, and salinity). The pivot_wider() was used to widen our dataset and represent a single sample ID in one row.  The same process was used to widen the HAB Occurrence dataset. The two processed datasets were then merged by the shared sample IDs to combine chemical, physical, and biological data for each sample. The specific variables selected were the algae concentrations (in cells/Liter) for Pseudo-nitzschia seriata and Alexandrium, the nutrient concentrations (in micro-Molar) for ammonium, nitrate, nitrite, phosphates, and silicates, sea surface temperature (SST), date of sample, year of sample, month of sample, and location of sample.
 
   The merged dataset contains a large number of NA values for the chemical and physical data (Table 2), however, there are no NA values for the biological data. When conducting the time series analysis on algae concentrations, interpolated values were used to create a daily dataset based on the merged dataset. When conducting the linear models, the rows with NA’s were dropped. 
 
   In addition to the presence of NA’s, each location’s dataset does not share the same time range (Table 3). For example, Santa Monica’s HAB monitoring system started in 06/2008 but San Diego’s HAB monitoring system started in 01/2011. It was decided not to reduce the dataset to maintain a shared date range between sampling locations. Since we are interested in observing site-specific trends, removing non-NA data would remove potentially useful information.
 
-```{r data wrangling, echo = FALSE}
+\newpage
+
+```{r data wrangling, echo = FALSE, message = FALSE, warning  = FALSE}
 #only certain species are of interest: Akashi sanguinea (reported fish and bird kills), Alexandriua (causes paralytic shellfish poisoning), cochlodinium (fish kills), dinophysis and lingulodinium (diarrhetic shellfish poisoining), and pseudo-nitzhcia (amnesic shellfishing poisoning)
 #source: https://calhabmap.org/prorocentrum-spp
 
@@ -101,42 +109,51 @@ hab_occ_wq <- merge(hab_occ_processed, water_qual_processed, by = c('id')) %>%
   filter(eventDate >= "2006-01-01") %>%
   select(-c(`Salinity ( PSS )`, `Chl1 ( mg/m3 )`, `Chl2 ( mg/m3 )`,`Avg_Phaeo ( mg/m3 )`, `Avg_Chloro ( mg/m3 )`,`Phaeo1 ( mg/m3 )`, `Phaeo2 ( mg/m3 )`, `pDA ( ng/mL )`,`Nitrite_Nitrate ( uM )`, `Akashiwo sanguinea ( cells/L )`,`Akashiwo sanguinea ( cells/L )`, `Lingulodinium polyedra ( cells/L )`, `Pseudo-nitzschia delicatissima ( cells/L )`, `Dinophysis ( cells/L )`)) %>% filter(locationID != "SantaCruzWharf", locationID != "MontereyWharf")
 
-na <- hab_occ_wq %>% group_by(locationID) %>% summarise_all(funs(sum(is.na(.)))) %>% select(-c("id", "Alexandrium ( cells/L )", "Pseudo-nitzschia seriata ( cells/L )", "eventDate"))
-
-date <- hab_occ_wq %>% group_by(locationID) %>% summarise(begin = min(eventDate), end  = max(eventDate))
-
 #save processed dataframes
 write.csv(hab_occ_processed, "./Data/Processed/hab_occ_processed.csv", row.names = FALSE)
 write.csv(water_qual_processed, "./Data/Processed/water_qual_processed.csv", row.names = FALSE)
 write.csv(hab_occ_wq, "./Data/Processed/hab_occ_wq.csv", row.names = FALSE)
 ```
 
-```{r prelim data analysis, echo = FALSE}
+```{r prelim data analysis, echo = FALSE, message = FALSE, warning  = FALSE}
+# for tables, select columns for study and create new df's
+# first copy processed data and select columns to be used for Linear Model
 df_habs <- hab_occ_wq %>% 
   mutate(month = month(eventDate), year = year(eventDate)) %>% 
   select(eventDate, locationID, "Alexandrium ( cells/L )", "Pseudo-nitzschia seriata ( cells/L )", "Ammonium ( uM )", "Nitrate ( uM )", "Nitrite ( uM )", "Phosphate ( uM )" , "Silicate ( uM )" , "Temp ( Celsius )", "month", "year")
 
 colnames(df_habs) <- c("date", "location", "alex", "pn", "nh4", "no3", "no2", "po4" , "sio3" , "temp", "month", "year")
 
-df_hab_table <- df_habs
+# second create table for kable tables
+# this table will be used to view the processed data
+df_hab_table <- df_habs %>% 
+ mutate_if(is.numeric, round)
 
-colnames(df_hab_table) <- c("Date", "Location", "Alex. (cells/L)", "Pseudo. (cells/L)", "NH4 (uM)", "NO3 (uM)", "NO2 (uM)", "PO4 (uM)" , "SiO3 (uM)" , "SST (C)", "Month", "Year")
+colnames(df_hab_table) <- c("Date", "Site", "Alex.", "Pseudo.", "NH4", "NO3", "NO2", "PO4" , "SiO3" , "SST", "Month", "Year")
 
 kable(head(df_hab_table), caption = "Table 1: First rows of processed data", booktabs=TRUE, format="latex", longtable=TRUE) %>%
-  kable_styling(latex_options="HOLD_position")
+  kable_styling(latex_options=c("scale_down", "HOLD_position"), position = "center",font = 10)
+
+# this table will be used to observe the number of NA's
+na <- df_hab_table %>% group_by(Site) %>% summarise_all(funs(sum(is.na(.)))) %>% select(-c("Date", "Alex.", "Pseudo.", "Month", "Year"))
 
 kable(na, caption = "Table 2: Number of NA's in processed dataset", booktabs=TRUE, format="latex", longtable=TRUE) %>%
   kable_styling(latex_options="scale_down")
+
+#this table will be used to obserev the date ranges for each site location
+date <- df_hab_table %>% group_by(Site) %>% summarise(Begin = min(Date), End  = max(Date))
 
 kable(date, caption = "Table 3: Date range of avaiable data for each sample location", booktabs=TRUE, format="latex", longtable=TRUE) %>%
   kable_styling(latex_options="scale_down")
 ```
 
+\newpage
+
 # Exploratory Analysis
 
 The preliminary analysis showed the relationships between algal concentrations location and temperature, temperature and location, and various nutrient concentrations over time. Figure 1 shows the change of Pseudo-nitzschia and Alexandrium over time and by temperature. For both algal species, concentrations are often 0 cells/L for across all sampling locations. However, Cal Poly Pier, Newport Pier, and Santa Monica Pier have higher ranges in Pseudo-nitzschia concentrations than other locations. For Alexandrium concentrations, Cal Poly Pier and Newport Pier have higher ranges. The second column of graphs in Figure 1 indicate that higher algal concentrations occur at SST's between 10 degrees Celsius and 20 degrees Celsius for both algal species group. 
 
-```{r Exploratory Analysis, echo = FALSE}
+```{r Exploratory Analysis, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 7, fig.height = 6}
 #prelim plots of sst, pn, and alex over time, grouped by location
 
 boxplot_pn <- ggplot(df_habs, aes(x = location, y = pn)) + 
@@ -148,9 +165,12 @@ boxplot_alex <- ggplot(df_habs, aes(x = location, y = alex)) +
   labs(x = "Location", y = "Concentration (cells/L)") + theme(axis.text.x = element_text(angle = 20, hjust = 1))
 
 scatter_pn_t <- ggplot(df_habs, aes(x = temp, y = pn, color = location)) +
-  geom_point() + labs(color = "Location") + theme(axis.title.x = element_blank(), axis.title.y = element_blank(), legend.position = c(0.80, 0.65), legend.spacing.y = unit(0, "mm"),
-        legend.background = element_blank(),
-        legend.box.background = element_rect(colour = "black"))
+  geom_point() + labs(color = "Location") + 
+  theme(axis.title.x = element_blank(), 
+        axis.title.y = element_blank(), 
+        legend.position = c(0.80, 0.65),  
+        legend.key.height = unit(4, 'mm'),
+        legend.key.width = unit(2, 'mm'))
 
 scatter_alex_t <- ggplot(df_habs, aes(x = temp,y = alex, color = location)) + 
   geom_point() + 
@@ -198,24 +218,37 @@ title_all <- ggdraw() +
   theme(plot.margin = margin(0, 0, 0, 7)
   )
 
-plot_grid(title_all, explore1, explore2, ncol = 1, rel_heights = c(0.1,1,1))
+plot_grid(title_all, explore1, explore2, ncol = 1, rel_heights = c(0.15,1,1))
 ```
+
+\newpage
 
 Figure 2 shows the relationship between location and recorded SST. CalPoly and Stearns Wharf have lower SST's than that of Newport Pier, Santa Monica Pier, and Scripps Pier. This could be due to the latitudinal position of each sampling site, as cold water moves southward along the North American Pacific Coast. 
 
-```{r Exploratory Analysis Part 2 SST, echo = FALSE}
+```{r Exploratory Analysis Part 2 SST, echo = FALSE, message = FALSE, warning  = FALSE}
 
-sst <- ggplot(df_habs, aes(x = reorder(location, temp))) + geom_boxplot(aes(y = temp)) + labs(title = "Figure 2: SST Over Time", y ="Temperature (C)", x = "Locations", color = "Location") + theme(legend.spacing.y = unit(0, "mm"),
-        legend.background = element_blank(),
-        legend.box.background = element_rect(colour = "black"))
+sst <- ggplot(df_habs, aes(x = location, y = temp)) + 
+  geom_boxplot() + labs(y = "Temperature (C)", x ="Locations")
 
+title_sst <- ggdraw() + 
+  draw_label(
+    "Figure 2: SST by locations",
+    fontface = 'bold',
+    x = 0,
+    hjust = 0
+  ) +
+  theme(plot.margin = margin(0, 0, 0, 7)
+  )
 
-sst
+plot_grid(title_sst, sst, ncol = 1, rel_heights = c(0.15,1))
+
 ```
+
+\newpage
 
 Figure 3 shows nutrient concentrations over time for each sampling site. For ammonium (NH4), nitrate (NO3), and silicate (SiO3), there is indication of seasonality as certain times of the year are associated with peaks in nutrient concentrations. Ammonium shows an increase concentration spikes over time at Stearns Wharf while nitrite shows an increase in concentration spikes at Santa Monica Pier. For phosphate, most samples have a nutrient concentration of 0 micro-Molar, except for Santa Monica. For silicates in CalPloy, the data gaps can be observed pre-2010. Referring to Table 1, the NA values of the dataset are found in recorded nutrient concentrations and SST.
 
-```{r Exploratory Analysis Part 3, echo = FALSE}
+```{r Exploratory Analysis Part 3, echo = FALSE, message = FALSE, warning  = FALSE}
 
 nh4 <- ggplot(df_habs, aes(x = date, color = location)) + geom_line(aes(y = nh4)) + labs(subtitle = "NH4", y ="uM", x = "Date", color = "Location") +  theme(axis.title.x = element_blank(), legend.spacing.y = unit(0, "mm"),
         legend.background = element_blank(),
@@ -245,26 +278,21 @@ plot_grid(title_nuts, nutrients_time, ncol= 1, rel_heights = c(0.1, 1))
 
 ```
 
+\newpage
+
 # Analysis 
-
 ## Time-Series
-
 Ten time series analyses were performed in this project: five examining changes in Pseudo-nitzschia concentrations over time at each SCCOOS site and five examining changes in Alexandrium concentrations over time at each SCCOOS site. These analyses were conducted by first filtering HAB data for a specific SCCOOS site and then generating a daily dataset encompassing that site’s date range. The filtered dataset and daily dataset were then merged using “eventDate” as the shared column, and a linear interpolation was used to fill missing HAB data. We felt as though a linear interpolation was appropriate in this case because missing data gaps were not large but differences in algal concentrations were significant. Next, a monthly mean dataset was generated using the interpolated HAB values; this was the dataset used to establish starting points, create the time series object and run the seasonal Mann Kendall test. This process was used to create and test each time series object.
 
 ## Linear Regression Model
-
 To answer Question 2, a Time-Series Analysis was conducted to observe any variables of significance in determining algal concentrations. The processed data set was split into several groups by location and algal species. For each group, a linear model was conducted using the same full model (Algae concentration ~ Ammonium + Nitrate + Nitrite + Phosphates + Silicates + Temperature + Month of Sample + Year of Sample) using the "lm" R function. Since phosphorous, nitrogen, and silica compounds are used in algal growth processes, these five nutrient concentrations were selected for the full models. Temperature, month, and year were selected to include the relationship between SST and time on algal growth or decline. Salinity was omitted from this model due to the higher number of NA's in the dataset. Based on a model's Aikaikie Information Criterion (AIC), a model would be reduced (using the backwards step method) to its most parsimonious version. Two tables of the linear model summaries were created using the tidy() function from the "broom" package". The variables of each final model, the included variable's coefficients, and the R-squared value of the final model are represented in Tables 3 and 4.
 
-Source: https://www.epa.gov/nutrientpollution/issue
-https://core.ac.uk/download/pdf/38899581.pdf
-
+\newpage
 
 # Results
 
-## Question 1
-=======
-
-```{r Alexandrium in Newport Pier: time series, echo = FALSE, eval = FALSE}
+## Question 1: Time-Series
+```{r Alexandrium in Newport Pier: time series, echo = FALSE, fig.show = 'hide', message = FALSE, results='hide'}
 #specify location
 NewportPier <- hab_occ_wq %>%
   filter(locationID == "NewportPier")
@@ -315,10 +343,10 @@ Alex.Newport.Monthly.Fig <- ggplot(Alexandrium.Newport.Monthly, aes(x = `Date`, 
   geom_line() + 
   geom_smooth(method = lm) +
   geom_hline(yintercept=100) +
- labs(y = "Concentration (cells/L)", subtitle = "Newport Pier 06/2008 - 08/2021")
+ labs(y = "Concentration (cells/L)", subtitle = "Newport Pier 6/2008-8/2021")
 ```
 
-```{r Alexandrium in San Luis Obispo: time series, echo = FALSE, eval = FALSE}
+```{r Alexandrium in San Luis Obispo: time series, echo = FALSE, fig.show = 'hide', message = FALSE, warning  = FALSE, results='hide'}
 #specify location
 CalPoly <- hab_occ_wq %>%
   filter(locationID == "CalPoly")
@@ -370,10 +398,10 @@ Alex.CalPoly.Monthly.Fig <- ggplot(Alexandrium.CalPoly.Monthly, aes(x = `Date`, 
   geom_smooth(method = lm) +
   geom_hline(yintercept=100) +
 labs(y = "Concentration (cells/L)", 
-subtitle = "San Luis Obispo 08/2008 - 09/2021")
+subtitle = "San Luis Obispo 8/2008-9/2021")
 ```
 
-```{r Alexandrium in Santa Monica: time series, echo = FALSE, eval = FALSE}
+```{r Alexandrium in Santa Monica: time series, echo = FALSE, fig.show = 'hide', message = FALSE, warning  = FALSE, results='hide'}
 #specify location
 SantaMonica <- hab_occ_wq %>%
   filter(locationID == "SantaMonicaPier")
@@ -424,10 +452,10 @@ Alex.SantaMonica.Monthly.Fig <- ggplot(Alexandrium.SantaMonica.Monthly, aes(x = 
   geom_smooth(method = lm) +
   geom_hline(yintercept=100) +
  labs(y = "Concentration (cells/L)",
-subtitle = "Santa Monica 06/2008 - 08/2021")
+subtitle = "Santa Monica 6/2008-8/2021")
 ```
 
-```{r Alexandrium in San Diego: time series, echo = FALSE, eval = FALSE}
+```{r Alexandrium in San Diego: time series, echo = FALSE, fig.show = 'hide', message = FALSE, warning  = FALSE, results='hide'}
 #specify location
 SanDiego <- hab_occ_wq %>%
   filter(locationID == "ScrippsPier")
@@ -479,10 +507,10 @@ Alex.SanDiego.Monthly.Fig <- ggplot(Alexandrium.SanDiego.Monthly, aes(x = `Date`
   geom_smooth(method = lm) +
   geom_hline(yintercept=100) +
  labs(y = "Concentration (cells/L)",
-subtitle = "San Diego 01/2011 - 03/2020")
+subtitle = "San Diego 1/2011-3/2020")
 ```
 
-```{r Alexandrium in Santa Barbara: time series, echo = FALSE, eval = FALSE}
+```{r Alexandrium in Santa Barbara: time series, echo = FALSE, fig.show = 'hide', message = FALSE, warning  = FALSE, results='hide'}
 #specify location
 SantaBarbara <- hab_occ_wq %>%
   filter(locationID == "StearnsWharf")
@@ -534,10 +562,10 @@ Alex.SantaBarbara.Monthly.Fig <- ggplot(Alexandrium.SantaBarbara.Monthly, aes(x 
   geom_smooth(method = lm) +
   geom_hline(yintercept=100) +
  labs(y = "Concentration (cells/L)",
-subtitle = "Santa Barbara 06/2008 - 07/2021")
+subtitle = "Santa Barbara 6/2008-7/2021")
 ```
 
-```{r Pseudo-nitzschia seriata in San Luis Obispo: time series, echo = FALSE, eval = FALSE}
+```{r Pseudo-nitzschia seriata in San Luis Obispo: time series, echo = FALSE, fig.show = 'hide', message = FALSE, warning  = FALSE, results='hide'}
 #specify location
 CalPoly <- hab_occ_wq %>%
   filter(locationID == "CalPoly")
@@ -589,10 +617,10 @@ Seriata.CalPoly.Monthly.Fig <- ggplot(Seriata.CalPoly.Monthly, aes(x = `Date`, y
   geom_smooth(method = lm) +
   geom_hline(yintercept=10000) +
  labs(y = "Concentration (cells/L)", 
-subtitle = "San Luis Obispo 8/2008 - 09/2021")
+subtitle = "San Luis Obispo 8/2008-9/2021")
 ```
 
-```{r Pseudo-nitzschia seriata in Santa Monica: time series, echo = FALSE, eval = FALSE}
+```{r Pseudo-nitzschia seriata in Santa Monica: time series, echo = FALSE, fig.show = 'hide', message = FALSE, warning  = FALSE, results='hide'}
 #specify location
 SantaMonica <- hab_occ_wq %>%
   filter(locationID == "SantaMonicaPier")
@@ -644,10 +672,10 @@ Seriata.SantaMonica.Monthly.Fig <- ggplot(Seriata.SantaMonica.Monthly, aes(x = `
   geom_smooth(method = lm) +
   geom_hline(yintercept=10000) +
  labs(y = "Concentration (cells/L)",
-subtitle = "Santa Monica 06/2008 - 08/2021")
+subtitle = "Santa Monica 06/2008-08/2021")
 ```
 
-```{r Pseudo-nitzschia seriata in San Diego: time series, echo = FALSE}
+```{r Pseudo-nitzschia seriata in San Diego: time series, echo = FALSE, fig.show = 'hide', message = FALSE, warning  = FALSE, results='hide'}
 #specify location
 SanDiego <- hab_occ_wq %>%
   filter(locationID == "ScrippsPier")
@@ -699,11 +727,10 @@ Seriata.SanDiego.Monthly.Fig <- ggplot(Seriata.SanDiego.Monthly, aes(x = `Date`,
   geom_smooth(method = lm) +
   geom_hline(yintercept=10000) +
  labs(y = "Concentration (cells/L)", 
-subtitle = "San Diego 01/2011 - 03/2020")
+subtitle = "San Diego 01/2011-03/2020")
 ```
 
-
-```{r Pseudo-nitzschia seriata in Newport: time series, echo = FALSE, eval = FALSE}
+```{r Pseudo-nitzschia seriata in Newport: time series, echo = FALSE, fig.show = 'hide', message = FALSE, warning  = FALSE, results='hide'}
 #specify location
 NewportPier <- hab_occ_wq %>%
   filter(locationID == "NewportPier")
@@ -755,10 +782,10 @@ Seriata.Newport.Monthly.Fig <- ggplot(Seriata.Newport.Monthly, aes(x = `Date`, y
   geom_smooth(method = lm) +
   geom_hline(yintercept=10000) +
 labs(y = "Concentration (cells/L)",
-subtitle = "Newport 06/2008 - 08/2021")
+subtitle = "Newport 06/2008-08/2021")
 ```
 
-```{r Pseudo-nitzschia seriata in Santa Barbara: time series, echo = FALSE, eval = FALSE}
+```{r Pseudo-nitzschia seriata in Santa Barbara: time series, echo = FALSE, fig.show = 'hide', message = FALSE, warning  = FALSE, results='hide'}
 #specify location
 SantaBarbara <- hab_occ_wq %>%
   filter(locationID == "StearnsWharf")
@@ -809,10 +836,10 @@ Seriata.SantaBarbara.Monthly.Fig <- ggplot(Seriata.SantaBarbara.Monthly, aes(x =
   geom_smooth(method = lm) +
   geom_hline(yintercept=10000) +
  labs(y = "Concentration (cells/L)",
-subtitle = "Santa Barbara 06/2008 - 07/2021")
+subtitle = "Santa Barbara 6/2008-7/2021") 
 ```
 
-```{r combining figures, echo = FALSE}
+```{r combining figures, echo = FALSE, message = FALSE, warning  = FALSE, fig.width = 7, fig.height = 4}
 #generate titles
 title_pn <- ggdraw() + 
   draw_label(
@@ -854,16 +881,19 @@ AL.Monthly.Fig <- plot_grid(Alex.CalPoly.Monthly.Fig + theme(legend.position = "
                          Alex.SanDiego.Monthly.Fig + theme(legend.position = "none"),
                          nrow = 2, align = "vh", axis = "btl")
 
-plot_grid(title_al, AL.Monthly.Fig, ncol = 1, rel_heights = c(0.1, 1))
+plot_grid(title_al, AL.Monthly.Fig, ncol = 1, rel_heights = c(0.15, 1))
 ```
 
-## Question 2: 
+
+\newpage
+
+## Question 2: Linear Model
 
 According to Table 3, the concentration of Pseudo-nitzschia are positively associated with Nitrite concentrations and negatively associated with Silicate concentrations across sampling locations. The variables for SST, time, and other nutrients do not show a consistent pattern across locations. The variable "Year of Sample" shows both positive and negative association with Algae concentration while Phosphate is included in only one final model for Stearns Wharf. The R-squared value for most Pseudo-nitzschia models are less than 0.10, meaning that these models explain less than 10% of the variance in the data. The final model for Santa Monica Pier yields a R-squared value of 0.26, explaining 26% of the variance in algae concentration in Santa Monica.
 
 For the Alexandrium species group, there is less consistency across sample locations. No one variable is included in each sampling location's final model. Phosphate, which is included in the final model of three locations, shows a positive association with nutrient concentration. The R-squared values for all final models of Alexandrium concentrations are below 0.05, explaining less than 5% of the variance. 
 
-```{r LMs, eval = FALSE, echo = FALSE}
+```{r LMs, echo = FALSE, fig.show = 'hide', message = FALSE, warning  = FALSE, results='hide'}
 dfs <- c()
 pns <- c()
 alexs <- c()
@@ -924,12 +954,12 @@ write.csv(al_lms, "./Data/Output/AL_LM_Coefficients_Cities.csv")
 
 ```
 
-```{r LM Output Tables, echo = FALSE}
+```{r LM Output Tables, echo = FALSE, warning = FALSE}
 kable(pn_lms, caption = "Table 3: Coefficients for Pseudo-nitzschia Linear Models", booktabs=TRUE, format="latex", longtable=TRUE) %>%
-  kable_styling(latex_options="HOLD_position")
+  kable_styling(latex_options="HOLD_position", font  = 9)
 
 kable(pn_lms, caption = "Table 4: Coefficients for Alexandrium Linear Models", booktabs=TRUE, format="latex", longtable=TRUE) %>%
-  kable_styling(latex_options="HOLD_position")
+  kable_styling(latex_options="HOLD_position", font = 9)
 ```
 
 # Summary and Conclusions
