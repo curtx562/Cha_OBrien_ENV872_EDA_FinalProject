@@ -1,5 +1,5 @@
 ---
-title: "Harmful Algal Blooms in Souther California"
+title: "Harmful Algal Blooms in Southern California"
 subtitle: "https://github.com/curtx562/Cha_OBrien_ENV872_EDA_FinalProject"
 author: "Curtis Cha & Bryce O'Brien"
 fontsize: 12pt
@@ -17,7 +17,6 @@ editor_options:
 ```{r ,include=FALSE, warning=FALSE}
 library(knitr)
 opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
-
 ```
 
 ```{r setup, include=FALSE, warning=FALSE}
@@ -28,7 +27,7 @@ getwd()
 # Load your packages
 knitr::opts_chunk$set(echo = TRUE)
 library(pacman)
-pacman::p_load(tidyverse, lubridate, finch, cowplot, zoo, trend, data.table, broom, kableExtra)
+pacman::p_load(tidyverse, lubridate, finch, cowplot, zoo, trend, broom, data.table, kableExtra)
 
 # Set your ggplot theme
 mytheme <- theme_classic(base_size = 11) +

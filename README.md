@@ -71,6 +71,43 @@ water_quality_processed: processed form of water_quality_raw
   -- Temp ( Celsius ): measurement of temperature
   -- Salinity ( PSS ): measuremtn of salinity
 
+hab_occ_wq: output of merging hab_occ_processed and water_qual_processed, for a given sample, there is biological, chemical, and physical data
+
+  -- id: sample ID
+  -- Alexandrium ( cells/L ): concentration of algae species
+  -- Pseudo-nitzschia seriata ( cells/L ): concentration of algae species
+  -- Ammonium ( uM ):	concentration of nutrient
+  -- Nitrate ( uM ): concentration of nutrient
+  -- Nitrite ( uM ): concentration of nutrient
+  -- Phosphate ( uM ): concentration of nutrient
+  -- Silicate ( uM ): concentration of nutrient
+  -- Temp ( Celsius ): measure of temperature
+  -- locationID: location of sample
+  -- eventDate: date of sample
+
+AL_LM_Coefficients_Cities: for the algae species group Alexandrium, at each sample location, there is a linear regression model predicting algae concentration from the variables in hab_occ_wq. Each row represents one linear model at a given sample location
+
+  -- Site: sampling location of linear model
+  -- NH4: coefficient of variable
+  -- NO2: coefficient of variable
+  -- NO3: coefficient of variable
+  -- SiO3: coefficient of variable
+  -- PO4: coefficient of variable
+  -- Month: coefficient of variable
+  -- Year: coefficient of variable
+  -- R-sq.: r-squared value of linear 
+  
+PN_LM_Coefficients_Cities: for the algae species group Pseudo-nitzchia, at each sample location, there is a linear regression model predicting algae concentration from the variables in hab_occ_wq. Each row represents one linear model at a given sample location.
+
+  -- Site: sampling location of linear model
+  -- NH4: coefficient of variable
+  -- NO2: coefficient of variable
+  -- NO3: coefficient of variable
+  -- SiO3: coefficient of variable
+  -- PO4: coefficient of variable
+  -- Month: coefficient of variable
+  -- Year: coefficient of variable
+  -- R-sq.: r-squared value of linear 
 
 Scripts/Code
 
