@@ -111,8 +111,16 @@ PN_LM_Coefficients_Cities: for the algae species group Pseudo-nitzchia, at each 
 
 Scripts/Code
 
-
-
+pacman: package for loading other R Studio packages
+tidyverse: package for data wrangling, plots
+lubridate: package for wrangling datetime data
+finch: package for handling Darwin Core Archive files, the format of raw data
+cowplot: package for combining plots
+zoo: package for filling NA's using approximation
+trend: package for conducting time-series analysis
+data.table: 
+broom: package for converting LM's into df format
+kableExtra: package for printing tables / dfs
 
 QA/QC
 
