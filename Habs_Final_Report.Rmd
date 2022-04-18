@@ -1,27 +1,32 @@
 ---
-<<<<<<< HEAD
-title: "Harmful Algal Blooms in Southern California: a Time Series Analysis"
-=======
-title: "Harmful Algal Blooms in Souther California"
+output: 
+  pdf_document:
+    keep_tex: yes
+    fig_caption: yes
+    number_sections: yes
+    toc: true
+geometry: margin=2.54cm
+title: "Harmful Algal Blooms in Southern California"
 subtitle: "https://github.com/curtx562/Cha_OBrien_ENV872_EDA_FinalProject"
->>>>>>> 4366b8c66a2c0ef737e1895dcc34b1cbb1ddeb0f
 author: "Curtis Cha & Bryce O'Brien"
 fontsize: 12pt
 mainfont: Times New Roman
-date: "3/23/2022"
-output: pdf_document
-  keep_tex: yes
-  fig_caption: yes
-  toc: true
-  number_sections: true
-geometry: margin = 2.54cm
 editor_options: 
   chunk_output_type: console
+---
+
+\newpage
+\tableofcontents 
+\newpage
+\listoftables 
+\newpage
+\listoffigures 
+\newpage
+
 ---
 ```{r ,include=FALSE, warning=FALSE}
 library(knitr)
 opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
-
 ```
 
 ```{r setup, include=FALSE, warning=FALSE}
@@ -362,7 +367,7 @@ Alexandrium.CalPoly.monthly.ts <- ts(Alexandrium.CalPoly.Monthly$MeanAlexandrium
 Alexandrium.CalPoly.MonthlyDecomp <- stl(Alexandrium.CalPoly.monthly.ts, s.window = "periodic")
 plot(Alexandrium.CalPoly.MonthlyDecomp)
 
-#Run the Mann Kendall tets
+#Run the Mann Kendall test
 Alexandrium.CalPoly.monthly.MannKendall <- Kendall::SeasonalMannKendall(Alexandrium.CalPoly.monthly.ts)
 summary(Alexandrium.CalPoly.monthly.MannKendall)
 
@@ -416,7 +421,7 @@ Alexandrium.SantaMonica.monthly.ts <- ts(Alexandrium.SantaMonica.Monthly$MeanAle
 Alexandrium.SantaMonica.MonthlyDecomp <- stl(Alexandrium.SantaMonica.monthly.ts, s.window = "periodic")
 plot(Alexandrium.SantaMonica.MonthlyDecomp)
 
-#Run the Mann Kendall tets
+#Run the Mann Kendall test
 Alexandrium.SantaMonica.monthly.MannKendall <- Kendall::SeasonalMannKendall(Alexandrium.SantaMonica.monthly.ts)
 summary(Alexandrium.SantaMonica.monthly.MannKendall)
 
@@ -471,7 +476,7 @@ Alexandrium.SanDiego.monthly.ts <- ts(Alexandrium.SanDiego.Monthly$MeanAlexandri
 Alexandrium.SanDiego.MonthlyDecomp <- stl(Alexandrium.SanDiego.monthly.ts, s.window = "periodic")
 plot(Alexandrium.SanDiego.MonthlyDecomp)
 
-#Run the Mann Kendall tets
+#Run the Mann Kendall test
 Alexandrium.SanDiego.monthly.MannKendall <- Kendall::SeasonalMannKendall(Alexandrium.SanDiego.monthly.ts)
 summary(Alexandrium.SanDiego.monthly.MannKendall)
 
@@ -526,7 +531,7 @@ Alexandrium.SantaBarbara.monthly.ts <- ts(Alexandrium.SantaBarbara.Monthly$MeanA
 Alexandrium.SantaBarbara.MonthlyDecomp <- stl(Alexandrium.SantaBarbara.monthly.ts, s.window = "periodic")
 plot(Alexandrium.SantaBarbara.MonthlyDecomp)
 
-#Run the Mann Kendall tets
+#Run the Mann Kendall test
 Alexandrium.SantaBarbara.monthly.MannKendall <- Kendall::SeasonalMannKendall(Alexandrium.SantaBarbara.monthly.ts)
 summary(Alexandrium.SantaBarbara.monthly.MannKendall)
 
@@ -581,7 +586,7 @@ Seriata.CalPoly.monthly.ts <- ts(Seriata.CalPoly.Monthly$MeanSeriata,
 Seriata.CalPoly.MonthlyDecomp <- stl(Seriata.CalPoly.monthly.ts, s.window = "periodic")
 plot(Seriata.CalPoly.MonthlyDecomp)
 
-#Run the Mann Kendall tets
+#Run the Mann Kendall test
 Seriata.CalPoly.monthly.MannKendall <- Kendall::SeasonalMannKendall(Seriata.CalPoly.monthly.ts)
 summary(Seriata.CalPoly.monthly.MannKendall)
 
@@ -636,7 +641,7 @@ Seriata.SantaMonica.monthly.ts <- ts(Seriata.SantaMonica.Monthly$MeanSeriata,
 Seriata.SantaMonica.MonthlyDecomp <- stl(Seriata.SantaMonica.monthly.ts, s.window = "periodic")
 plot(Seriata.SantaMonica.MonthlyDecomp)
 
-#Run the Mann Kendall tets
+#Run the Mann Kendall test
 Seriata.SantaMonica.monthly.MannKendall <- Kendall::SeasonalMannKendall(Seriata.SantaMonica.monthly.ts)
 summary(Seriata.SantaMonica.monthly.MannKendall)
 
@@ -691,7 +696,7 @@ Seriata.SanDiego.monthly.ts <- ts(Seriata.SanDiego.Monthly$MeanSeriata,
 Seriata.SanDiego.MonthlyDecomp <- stl(Seriata.SanDiego.monthly.ts, s.window = "periodic")
 plot(Seriata.SanDiego.MonthlyDecomp)
 
-#Run the Mann Kendall tets
+#Run the Mann Kendall test
 Seriata.SanDiego.monthly.MannKendall <- Kendall::SeasonalMannKendall(Seriata.SanDiego.monthly.ts)
 summary(Seriata.SanDiego.monthly.MannKendall)
 
@@ -747,7 +752,7 @@ Seriata.Newport.monthly.ts <- ts(Seriata.Newport.Monthly$MeanSeriata,
 Seriata.Newport.MonthlyDecomp <- stl(Seriata.Newport.monthly.ts, s.window = "periodic")
 plot(Seriata.Newport.MonthlyDecomp)
 
-#Run the Mann Kendall tets
+#Run the Mann Kendall test
 Seriata.Newport.monthly.MannKendall <- Kendall::SeasonalMannKendall(Seriata.Newport.monthly.ts)
 summary(Seriata.Newport.monthly.MannKendall)
 
@@ -801,7 +806,7 @@ Seriata.SantaBarbara.monthly.ts <- ts(Seriata.SantaBarbara.Monthly$MeanSeriata,
 Seriata.SantaBarbara.MonthlyDecomp <- stl(Seriata.SantaBarbara.monthly.ts, s.window = "periodic")
 plot(Seriata.SantaBarbara.MonthlyDecomp)
 
-#Run the Mann Kendall tets
+#Run the Mann Kendall test
 Seriata.SantaBarbara.monthly.MannKendall <- Kendall::SeasonalMannKendall(Seriata.SantaBarbara.monthly.ts)
 summary(Seriata.SantaBarbara.monthly.MannKendall)
 
