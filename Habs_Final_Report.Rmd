@@ -1,16 +1,19 @@
 ---
-title: "Harmful Algal Blooms in Souther California"
+output: 
+  pdf_document:
+      keep_tex: yes
+      toc: true
+      fig_caption: yes
+      number_sections: true
+geometry: margin = 2.54cm
+title: "Harmful Algal Blooms in Southern California"
 subtitle: "https://github.com/curtx562/Cha_OBrien_ENV872_EDA_FinalProject"
 author: "Curtis Cha & Bryce O'Brien"
 fontsize: 12pt
 mainfont: Times New Roman
 date: "3/23/2022"
-output: pdf_document
-  keep_tex: yes
-  fig_caption: yes
-  toc: true
-  number_sections: true
-geometry: margin = 2.54cm
+
+
 editor_options: 
   chunk_output_type: console
 ---
