@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022) (preloaded format=pdflatex 2022.4.18)  18 APR 2022 16:59
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022) (preloaded format=pdflatex 2022.4.19)  19 APR 2022 11:46
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -541,7 +541,9 @@ File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 LaTeX Font Info:    Trying to load font information for U+msb on input line 95.
 (c:/Users/bro7/AppData/Roaming/TinyTeX/texmf-dist/tex/latex/amsfonts/umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
-) (./Habs_Final_Report.toc
+) [1
+
+{c:/Users/bro7/AppData/Roaming/TinyTeX/texmf-var/fonts/map/pdftex/updmap/pdftex.map}] (./Habs_Final_Report.toc
 LaTeX Font Info:    External font `lmex10' loaded for size
 (Font)              <12> on input line 5.
 LaTeX Font Info:    External font `lmex10' loaded for size
@@ -552,56 +554,79 @@ LaTeX Font Info:    External font `lmex10' loaded for size
 \tf@toc=\write4
 \openout4 = `Habs_Final_Report.toc'.
 
-(./Habs_Final_Report.lof)
-\tf@lof=\write5
-\openout5 = `Habs_Final_Report.lof'.
+[2] (./Habs_Final_Report.lot)
+\tf@lot=\write5
+\openout5 = `Habs_Final_Report.lot'.
 
-[1
+[3] (./Habs_Final_Report.lof)
+\tf@lof=\write6
+\openout6 = `Habs_Final_Report.lof'.
 
-{c:/Users/bro7/AppData/Roaming/TinyTeX/texmf-var/fonts/map/pdftex/updmap/pdftex.map}] (./Habs_Final_Report.lot)
-\tf@lot=\write6
-\openout6 = `Habs_Final_Report.lot'.
-
-[2] [3] [4] [5]
-<Habs_Final_Report_files/figure-latex/Exploratory Analysis-1.pdf, id=105, 505.89pt x 433.62pt>
+[4] [5] [6] [7]
+<Habs_Final_Report_files/figure-latex/Exploratory Analysis-1.pdf, id=124, 505.89pt x 433.62pt>
 File: Habs_Final_Report_files/figure-latex/Exploratory Analysis-1.pdf Graphic file (type pdf)
 <use Habs_Final_Report_files/figure-latex/Exploratory Analysis-1.pdf>
-Package pdftex.def Info: Habs_Final_Report_files/figure-latex/Exploratory Analysis-1.pdf  used on input line 269.
+Package pdftex.def Info: Habs_Final_Report_files/figure-latex/Exploratory Analysis-1.pdf  used on input line 268.
 (pdftex.def)             Requested size: 469.76265pt x 402.65372pt.
-[6 <./Habs_Final_Report_files/figure-latex/Exploratory Analysis-1.pdf>]
-<Habs_Final_Report_files/figure-latex/Exploratory Analysis Part 2 SST-1.pdf, id=117, 469.755pt x 325.215pt>
+[8
+pdfTeX warning (ext4): destination with the same identifier (name{figure.1}) has been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.272 \newpage
+               <./Habs_Final_Report_files/figure-latex/Exploratory Analysis-1.pdf>]
+<Habs_Final_Report_files/figure-latex/Exploratory Analysis Part 2 SST-1.pdf, id=136, 469.755pt x 325.215pt>
 File: Habs_Final_Report_files/figure-latex/Exploratory Analysis Part 2 SST-1.pdf Graphic file (type pdf)
 <use Habs_Final_Report_files/figure-latex/Exploratory Analysis Part 2 SST-1.pdf>
-Package pdftex.def Info: Habs_Final_Report_files/figure-latex/Exploratory Analysis Part 2 SST-1.pdf  used on input line 279.
+Package pdftex.def Info: Habs_Final_Report_files/figure-latex/Exploratory Analysis Part 2 SST-1.pdf  used on input line 282.
 (pdftex.def)             Requested size: 469.75386pt x 325.2142pt.
-[7 <./Habs_Final_Report_files/figure-latex/Exploratory Analysis Part 2 SST-1.pdf>]
-<Habs_Final_Report_files/figure-latex/Exploratory Analysis Part 3-1.pdf, id=129, 469.755pt x 325.215pt>
+[9
+pdfTeX warning (ext4): destination with the same identifier (name{figure.2}) has been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.286 \newpage
+               <./Habs_Final_Report_files/figure-latex/Exploratory Analysis Part 2 SST-1.pdf>]
+<Habs_Final_Report_files/figure-latex/Exploratory Analysis Part 3-1.pdf, id=146, 469.755pt x 325.215pt>
 File: Habs_Final_Report_files/figure-latex/Exploratory Analysis Part 3-1.pdf Graphic file (type pdf)
 <use Habs_Final_Report_files/figure-latex/Exploratory Analysis Part 3-1.pdf>
-Package pdftex.def Info: Habs_Final_Report_files/figure-latex/Exploratory Analysis Part 3-1.pdf  used on input line 294.
+Package pdftex.def Info: Habs_Final_Report_files/figure-latex/Exploratory Analysis Part 3-1.pdf  used on input line 301.
 (pdftex.def)             Requested size: 469.75386pt x 325.2142pt.
-[8 <./Habs_Final_Report_files/figure-latex/Exploratory Analysis Part 3-1.pdf>] [9]
-<Habs_Final_Report_files/figure-latex/combining figures-1.pdf, id=148, 505.89pt x 289.08pt>
-File: Habs_Final_Report_files/figure-latex/combining figures-1.pdf Graphic file (type pdf)
-<use Habs_Final_Report_files/figure-latex/combining figures-1.pdf>
-Package pdftex.def Info: Habs_Final_Report_files/figure-latex/combining figures-1.pdf  used on input line 377.
+[10
+pdfTeX warning (ext4): destination with the same identifier (name{figure.3}) has been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.305 \newpage
+               <./Habs_Final_Report_files/figure-latex/Exploratory Analysis Part 3-1.pdf>] [11]
+<Habs_Final_Report_files/figure-latex/combining Pseudo-nitzschia figures-1.pdf, id=164, 505.89pt x 289.08pt>
+File: Habs_Final_Report_files/figure-latex/combining Pseudo-nitzschia figures-1.pdf Graphic file (type pdf)
+<use Habs_Final_Report_files/figure-latex/combining Pseudo-nitzschia figures-1.pdf>
+Package pdftex.def Info: Habs_Final_Report_files/figure-latex/combining Pseudo-nitzschia figures-1.pdf  used on input line 389.
 (pdftex.def)             Requested size: 469.76265pt x 268.43579pt.
-<Habs_Final_Report_files/figure-latex/combining figures-2.pdf, id=149, 505.89pt x 289.08pt>
-File: Habs_Final_Report_files/figure-latex/combining figures-2.pdf Graphic file (type pdf)
-<use Habs_Final_Report_files/figure-latex/combining figures-2.pdf>
-Package pdftex.def Info: Habs_Final_Report_files/figure-latex/combining figures-2.pdf  used on input line 378.
+<Habs_Final_Report_files/figure-latex/combining Alexandrium figures-1.pdf, id=165, 505.89pt x 289.08pt>
+File: Habs_Final_Report_files/figure-latex/combining Alexandrium figures-1.pdf Graphic file (type pdf)
+<use Habs_Final_Report_files/figure-latex/combining Alexandrium figures-1.pdf>
+Package pdftex.def Info: Habs_Final_Report_files/figure-latex/combining Alexandrium figures-1.pdf  used on input line 395.
 (pdftex.def)             Requested size: 469.76265pt x 268.43579pt.
-[10 <./Habs_Final_Report_files/figure-latex/combining figures-1.pdf>] [11 <./Habs_Final_Report_files/figure-latex/combining figures-2.pdf>]
-Overfull \hbox (13.02097pt too wide) in alignment at lines 409--420
+[12] [13
+pdfTeX warning (ext4): destination with the same identifier (name{figure.4}) has been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.399 \newpage
+              
+pdfTeX warning (ext4): destination with the same identifier (name{figure.5}) has been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.399 \newpage
+               <./Habs_Final_Report_files/figure-latex/combining Pseudo-nitzschia figures-1.pdf> <./Habs_Final_Report_files/figure-latex/combining Alexandrium figures-1.pdf>]
+Overfull \hbox (13.02097pt too wide) in alignment at lines 428--439
  [] [] [] [] [] [] [] [] [] 
  []
 
 
-Overfull \hbox (13.02097pt too wide) in alignment at lines 425--436
+Overfull \hbox (13.02097pt too wide) in alignment at lines 444--455
  [] [] [] [] [] [] [] [] [] 
  []
 
-[12] [13] (./Habs_Final_Report.aux)
+[14] [15] [16] (./Habs_Final_Report.aux)
 
 LaTeX Warning: There were multiply-defined labels.
 
@@ -609,18 +634,18 @@ Package rerunfilecheck Info: File `Habs_Final_Report.out' has not changed.
 (rerunfilecheck)             Checksum: 1D3F2BDC80A72EE9B90D7AB372720219;2261.
  ) 
 Here is how much of TeX's memory you used:
- 12562 strings out of 480198
- 200204 string characters out of 5891746
- 498738 words of memory out of 5000000
- 30266 multiletter control sequences out of 15000+600000
+ 12572 strings out of 480198
+ 200494 string characters out of 5891746
+ 498739 words of memory out of 5000000
+ 30268 multiletter control sequences out of 15000+600000
  520981 words of font info for 70 fonts, out of 8000000 for 9000
  14 hyphenation exceptions out of 8191
  60i,7n,63p,584b,392s stack positions out of 10000i,1000n,20000p,200000b,200000s
 {c:/Users/bro7/AppData/Roaming/TinyTeX/texmf-dist/fonts/enc/dvips/lm/lm-ec.enc}<c:/Users/bro7/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/public/lm/lmbx12.pfb><c:/Users/bro7/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/public/lm/lmr10.pfb><c:/Users/bro7/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/public/lm/lmr12.pfb><c:/Users/bro7/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/public/lm/lmr17.pfb><c:/Users/bro7/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/public/lm/lmr9.pfb>
-Output written on Habs_Final_Report.pdf (13 pages, 451373 bytes).
+Output written on Habs_Final_Report.pdf (16 pages, 452705 bytes).
 PDF statistics:
- 236 PDF objects out of 1000 (max. 8388607)
- 199 compressed objects within 2 object streams
- 45 named destinations out of 1000 (max. 500000)
+ 256 PDF objects out of 1000 (max. 8388607)
+ 215 compressed objects within 3 object streams
+ 53 named destinations out of 1000 (max. 500000)
  114 words of extra memory for PDF output out of 10000 (max. 10000000)
 

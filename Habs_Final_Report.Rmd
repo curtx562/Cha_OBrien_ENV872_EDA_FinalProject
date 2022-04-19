@@ -4,23 +4,22 @@ output:
     keep_tex: yes
     fig_caption: yes
     number_sections: yes
-    toc: true
-geometry: margin = 2.54cm
+geometry: margin=2.54cm
 title: "Harmful Algal Blooms in Southern California"
 subtitle: "https://github.com/curtx562/Cha_OBrien_ENV872_EDA_FinalProject"
 author: "Curtis Cha & Bryce O'Brien"
 fontsize: 12pt
 mainfont: Times New Roman
-editor_options: 
-  chunk_output_type: console
 ---
 
+\newpage
+\tableofcontents 
 \newpage
 \listoftables 
 \newpage
-\listoffigures
+\listoffigures 
+\newpage
 
----
 ```{r ,include=FALSE, warning=FALSE}
 library(knitr)
 opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
@@ -156,7 +155,7 @@ kable(date, caption = "Date range of avaiable data for each sample location", bo
 
 The preliminary analysis showed the relationships between algal concentrations location and temperature, temperature and location, and various nutrient concentrations over time. Fig. 1 shows the change of Pseudo-nitzschia and Alexandrium over time and by temperature. For both algal species, concentrations are often 0 cells/L for across all sampling locations. However, Cal Poly Pier, Newport Pier, and Santa Monica Pier have higher ranges in Pseudo-nitzschia concentrations than other locations. For Alexandrium concentrations, Cal Poly Pier and Newport Pier have higher ranges. The second column of graphs in Fig. 1 indicate that higher algal concentrations occur at SST's between 10 degrees Celsius and 20 degrees Celsius for both algal species group. 
 
-```{r Exploratory Analysis, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 7, fig.height = 6}
+```{r Exploratory Analysis, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 7, fig.height = 6, fig.cap = 'Algal Concentrations by Location and Temperature'}
 #prelim plots of sst, pn, and alex over time, grouped by location
 
 boxplot_pn <- ggplot(df_habs, aes(x = location, y = pn)) + 
@@ -213,7 +212,7 @@ explore2 <- plot_grid(title_al1, alex_explore,ncol = 1, rel_heights = c(0.1,1))
 
 title_all <- ggdraw() + 
   draw_label(
-    "Figure 1: Algal Concentrations by Location and Temperature",
+    "",
     fontface = 'bold',
     x = 0,
     hjust = 0
@@ -228,22 +227,12 @@ plot_grid(title_all, explore1, explore2, ncol = 1, rel_heights = c(0.15,1,1))
 
 Fig. 2 shows the relationship between location and recorded SST. CalPoly and Stearns Wharf have lower SST's than that of Newport Pier, Santa Monica Pier, and Scripps Pier. This could be due to the latitudinal position of each sampling site, as cold water moves southward along the North American Pacific Coast. 
 
-```{r Exploratory Analysis Part 2 SST, echo = FALSE, message = FALSE, warning  = FALSE}
+```{r Exploratory Analysis Part 2 SST, echo = FALSE, message = FALSE, warning  = FALSE, fig.cap= 'Sea Surface Temperature by Location'}
 
 sst <- ggplot(df_habs, aes(x = location, y = temp)) + 
   geom_boxplot() + labs(y = "Temperature (C)", x ="Locations")
 
-title_sst <- ggdraw() + 
-  draw_label(
-    "Figure 2: Sea Surface Temperature by Location",
-    fontface = 'bold',
-    x = 0,
-    hjust = 0
-  ) +
-  theme(plot.margin = margin(0, 0, 0, 7)
-  )
-
-plot_grid(title_sst, sst, ncol = 1, rel_heights = c(0.15,1))
+plot_grid(sst, ncol = 1, rel_heights = c(0.15,1))
 
 ```
 
@@ -251,7 +240,7 @@ plot_grid(title_sst, sst, ncol = 1, rel_heights = c(0.15,1))
 
 Fig. 3 shows nutrient concentrations over time for each sampling site. For ammonium (NH4), nitrate (NO3), and silicate (SiO3), there is indication of seasonality as certain times of the year are associated with peaks in nutrient concentrations. Ammonium shows an increase concentration spikes over time at Stearns Wharf while nitrite shows an increase in concentration spikes at Santa Monica Pier. For phosphate, most samples have a nutrient concentration of 0 micro-Molar, except for Santa Monica. For silicates in CalPloy, the data gaps can be observed pre-2010. Referring to Table 1, the NA values of the dataset are found in recorded nutrient concentrations and SST.
 
-```{r Exploratory Analysis Part 3, echo = FALSE, message = FALSE, warning  = FALSE}
+```{r Exploratory Analysis Part 3, echo = FALSE, message = FALSE, warning  = FALSE, fig.cap= 'Nutrient Concentrations by Location and Temperature'}
 
 nh4 <- ggplot(df_habs, aes(x = date, color = location)) + geom_line(aes(y = nh4)) + labs(subtitle = "NH4", y ="uM", x = "Date", color = "Location") +  theme(axis.title.x = element_blank(), legend.spacing.y = unit(0, "mm"),
         legend.background = element_blank(),
@@ -265,19 +254,9 @@ po4 <- ggplot(df_habs, aes(x = date, color = location)) + geom_line(aes(y = po4)
 
 sio3 <- ggplot(df_habs, aes(x = date, color = location)) + geom_line(aes(y = sio3)) + labs(subtitle = "SiO3", y ="Temperature (C)", x = "Date", color = "Location") +  theme(axis.title.y = element_blank(),legend.position="none") 
 
-title_nuts <- ggdraw() + 
-  draw_label(
-    "Figure 3: Nutrient Concentrations by Location and Temperature",
-    fontface = 'bold',
-    x = 0,
-    hjust = 0
-  ) +
-  theme(plot.margin = margin(0, 0, 0, 7)
-  )
-
 nutrients_time <- plot_grid(nh4 + theme(legend.position = "none"), no3, no2, po4, sio3, get_legend(nh4))
 
-plot_grid(title_nuts, nutrients_time, ncol= 1, rel_heights = c(0.1, 1))
+plot_grid(nutrients_time, ncol= 1, rel_heights = c(0.1, 1))
 
 ```
 
@@ -854,29 +833,7 @@ Seriata.SantaBarbara.Monthly.Fig <- ggplot(Seriata.SantaBarbara.Monthly, aes(x =
 subtitle = "Santa Barbara 6/2008-7/2021") 
 ```
 
-```{r combining figures, echo = FALSE, message = FALSE, warning  = FALSE, fig.width = 7, fig.height = 4}
-#generate titles
-title_pn <- ggdraw() + 
-  draw_label(
-    "Fig. 4 Mean Monthly Pseudo-nitzschia Concentrations",
-    fontface = 'bold',
-    x = 0,
-    hjust = 0
-  ) +
-  theme(
-    plot.margin = margin(0, 0, 0, 7)
-  )
-
-title_al <- ggdraw() + 
-  draw_label(
-    "Fig. 5 Mean Monthly Alexandrium Concentrations",
-    fontface = 'bold',
-    x = 0,
-    hjust = 0
-  ) +
-  theme(
-    plot.margin = margin(0, 0, 0, 7)
-  ) 
+```{r combining Pseudo-nitzschia figures, echo = FALSE, message = FALSE, warning  = FALSE, fig.width = 7, fig.height = 4, fig.cap='Mean Monthly Pseudo-nitzschia Concentrations'}
 
 #cowplot for Pseudo-nitzschia
 PN.Monthly.Fig <- plot_grid(Seriata.CalPoly.Monthly.Fig + theme(legend.position = "none"), 
@@ -886,7 +843,11 @@ PN.Monthly.Fig <- plot_grid(Seriata.CalPoly.Monthly.Fig + theme(legend.position 
                          Seriata.SanDiego.Monthly.Fig + theme(legend.position = "none"),
                          nrow = 2, align = "vh", axis = "btl")
 
-plot_grid(title_pn, PN.Monthly.Fig, ncol = 1, rel_heights = c(0.1, 1))
+plot_grid(PN.Monthly.Fig, ncol = 1, rel_heights = c(0.1, 1))
+```
+
+
+```{r combining Alexandrium figures, echo = FALSE, message = FALSE, warning  = FALSE, fig.width = 7, fig.height = 4, fig.cap='Mean Monthly Alexandrium Concentrations'}
 
 #cowplot for Alexandrium
 AL.Monthly.Fig <- plot_grid(Alex.CalPoly.Monthly.Fig + theme(legend.position = "none"), 
@@ -896,7 +857,7 @@ AL.Monthly.Fig <- plot_grid(Alex.CalPoly.Monthly.Fig + theme(legend.position = "
                          Alex.SanDiego.Monthly.Fig + theme(legend.position = "none"),
                          nrow = 2, align = "vh", axis = "btl")
 
-plot_grid(title_al, AL.Monthly.Fig, ncol = 1, rel_heights = c(0.15, 1))
+plot_grid(AL.Monthly.Fig, ncol = 1, rel_heights = c(0.15, 1))
 ```
 
 
@@ -970,12 +931,14 @@ write.csv(al_lms_coef, "./Data/Output/AL_LM_Coefficients_Cities.csv")
 ```
 
 ```{r LM Output Tables, echo = FALSE, warning = FALSE}
-kable(pn_lms, caption = "Coefficients for Pseudo-nitzschia Linear Models", booktabs=TRUE, format="latex", longtable=TRUE) %>%
+kable(pn_lms_coef, caption = "Coefficients for Pseudo-nitzschia Linear Models", booktabs=TRUE, format="latex", longtable=TRUE) %>%
   kable_styling(latex_options="HOLD_position", font  = 9)
 
-kable(pn_lms, caption = "Coefficients for Alexandrium Linear Models", booktabs=TRUE, format="latex", longtable=TRUE) %>%
+kable(pn_lms_coef, caption = "Coefficients for Alexandrium Linear Models", booktabs=TRUE, format="latex", longtable=TRUE) %>%
   kable_styling(latex_options="HOLD_position", font = 9)
 ```
+
+\newpage 
 
 # Summary and Conclusions
 
@@ -986,8 +949,6 @@ One interesting similarity between the two HAB types is that the magnitude of bl
 According to the linear models, Pseudo-Nitzschia concentrations are positively associated with Nitrite and negatively associated with Silicates. Alexandrium concentrations in select sites are positively associated with Phosphates. It is important to note that these linear models do not explain much of the variance. Moving forward, there should be more review on the interactions of algal species and nutrients. When algae species grow, they consume the nutrients in the water column and reduce the overall nutrient concentration. Complications that arise from this interaction could be mitigated by averaging the nutrient concentration for the week or month or by converting algae data into Poisson data; research on the relationship between average nutrient concentration and average algae concentration would also be helpful here. 
 
 Although the only upward trend of HAB concentrations that we observed were that of Pseudo-nitzschia concentrations in Newport, this upward trend has been noted in many species globally over the past 10-15 years (Lewitus et al. 2012) Consequently, it has become increasingly important to better understand the dynamics of these destructive and dangerous phenomena especially as our climate and oceans continue to change.
-
-\newpage
 
 # References
 
