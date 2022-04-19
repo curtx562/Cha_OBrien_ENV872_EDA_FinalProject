@@ -1,16 +1,17 @@
 ---
-output: 
+title: "Harmful Algal Blooms in Southern California"
+author: "Curtis Cha & Bryce O'Brien"
+output:
+  html_document:
+    df_print: paged
   pdf_document:
     keep_tex: yes
     fig_caption: yes
     number_sections: yes
+subtitle: https://github.com/curtx562/Cha_OBrien_ENV872_EDA_FinalProject
 geometry: margin = 2.54cm
-title: "Harmful Algal Blooms in Southern California"
-subtitle: "https://github.com/curtx562/Cha_OBrien_ENV872_EDA_FinalProject"
-author: "Curtis Cha & Bryce O'Brien"
 fontsize: 12pt
 mainfont: Times New Roman
-
 ---
 
 \newpage
