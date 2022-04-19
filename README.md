@@ -17,7 +17,7 @@ Linear models were produced and used to create two csv's "AL_LM_Coefficient_Citi
 
 Folder Structure 
 
-This repository contains the following two files; HABS_Final_Report.rmd and Data. The Data Folder is further split into three folders: Output, Processed, and Raw. The Raw Folder contains two csv files: hab_occ_raw and water_qual_raw. The Processed Folder contains three csv files: hab_occ_processed, water_qual_processed, and hab_occ_wq. The Output Folder contains two .csv's and two .png's, "AL_LM_Coefficients_Cities.csv", "PN_LM_Coefficients_Cities", "Alexandrium Over Time", and "Pseudo-nitzchia Over Time".
+This repository contains the following several files; Habs_Final_Report.rmd, Habs_Final_Report.log, Habs_Final_Report.pdf, Habs_Final_Report.tex, Habs_Final_Report_cache, Habs_Final_Report_files and Data. The Habs_Final_Report_cache contain the latex files for the codes' packages. The Habs_Final_Report_files contain the latex files for the codes' figures (as pdfs). The Data Folder is further split into three folders: Output, Processed, and Raw. The Raw Folder contains two csv files: hab_occ_raw and water_qual_raw. The Processed Folder contains three csv files: hab_occ_processed, water_qual_processed, and hab_occ_wq. The Output Folder contains two .csv's and two .png's, "AL_LM_Coefficients_Cities.csv", "PN_LM_Coefficients_Cities", "Alexandrium Over Time", and "Pseudo-nitzchia Over Time".
 
 Metadata
 
