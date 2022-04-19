@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.23 (MiKTeX 21.8) (preloaded format=pdflatex 2021.8.28)  18 APR 2022 22:11
+This is pdfTeX, Version 3.141592653-2.6-1.40.23 (MiKTeX 21.8) (preloaded format=pdflatex 2021.8.28)  18 APR 2022 22:22
 entering extended mode
 **./Habs_Final_Report.tex
 (Habs_Final_Report.tex
@@ -714,26 +714,26 @@ Package pdftex.def Info: Habs_Final_Report_files/figure-latex/Exploratory Analy
 sis Part 3-1.pdf  used on input line 295.
 (pdftex.def)             Requested size: 469.75386pt x 325.2142pt.
 [10 <./Habs_Final_Report_files/figure-latex/Exploratory Analysis Part 3-1.pdf>]
-[11]
-<Habs_Final_Report_files/figure-latex/combining figures-1.pdf, id=121, 505.89pt
+[11] [12]
+<Habs_Final_Report_files/figure-latex/combining figures-1.pdf, id=127, 505.89pt
  x 289.08pt>
 File: Habs_Final_Report_files/figure-latex/combining figures-1.pdf Graphic file
  (type pdf)
 <use Habs_Final_Report_files/figure-latex/combining figures-1.pdf>
 Package pdftex.def Info: Habs_Final_Report_files/figure-latex/combining figures
--1.pdf  used on input line 379.
+-1.pdf  used on input line 381.
 (pdftex.def)             Requested size: 469.76265pt x 268.43579pt.
-<Habs_Final_Report_files/figure-latex/combining figures-2.pdf, id=122, 505.89pt
+<Habs_Final_Report_files/figure-latex/combining figures-2.pdf, id=128, 505.89pt
  x 289.08pt>
 File: Habs_Final_Report_files/figure-latex/combining figures-2.pdf Graphic file
  (type pdf)
 <use Habs_Final_Report_files/figure-latex/combining figures-2.pdf>
 Package pdftex.def Info: Habs_Final_Report_files/figure-latex/combining figures
--2.pdf  used on input line 380.
+-2.pdf  used on input line 382.
 (pdftex.def)             Requested size: 469.76265pt x 268.43579pt.
-[12 <./Habs_Final_Report_files/figure-latex/combining figures-1.pdf>] [13 <./Ha
-bs_Final_Report_files/figure-latex/combining figures-2.pdf>]
-Overfull \hbox (13.02097pt too wide) in alignment at lines 411--422
+[13 <./Habs_Final_Report_files/figure-latex/combining figures-1.pdf> <./Habs_Fi
+nal_Report_files/figure-latex/combining figures-2.pdf>]
+Overfull \hbox (13.02097pt too wide) in alignment at lines 413--424
  [] [] [] [] [] [] [] [] [] 
  []
 
@@ -756,7 +756,7 @@ Here is how much of TeX's memory you used:
 /Users/curtx/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmr12.pfb><C:/
 Users/curtx/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmr17.pfb><C:/U
 sers/curtx/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmr9.pfb>
-Output written on Habs_Final_Report.pdf (16 pages, 476697 bytes).
+Output written on Habs_Final_Report.pdf (16 pages, 476661 bytes).
 PDF statistics:
  244 PDF objects out of 1000 (max. 8388607)
  48 named destinations out of 1000 (max. 500000)

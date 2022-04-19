@@ -2,12 +2,12 @@
 title: "Harmful Algal Blooms in Southern California"
 author: "Curtis Cha & Bryce O'Brien"
 output:
-  html_document:
-    df_print: paged
   pdf_document:
     keep_tex: yes
     fig_caption: yes
     number_sections: yes
+  html_document:
+    df_print: paged
 subtitle: https://github.com/curtx562/Cha_OBrien_ENV872_EDA_FinalProject
 geometry: margin = 2.54cm
 fontsize: 12pt
@@ -856,6 +856,8 @@ Seriata.SantaBarbara.Monthly.Fig <- ggplot(Seriata.SantaBarbara.Monthly, aes(x =
  labs(y = "Concentration (cells/L)",
 subtitle = "Santa Barbara 6/2008-7/2021") 
 ```
+
+\newpage
 
 ```{r combining figures, echo = FALSE, message = FALSE, warning  = FALSE, fig.width = 7, fig.height = 4}
 #generate titles
