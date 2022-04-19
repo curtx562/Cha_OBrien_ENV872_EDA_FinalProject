@@ -93,13 +93,12 @@
 \begin{document}
 \maketitle
 
-{
-\setcounter{tocdepth}{2}
+\newpage
 \tableofcontents
-}
-\listoffigures
 \newpage
 \listoftables 
+\newpage
+\listoffigures
 \newpage
 
 \begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
@@ -117,13 +116,14 @@ populations (Moore et al.~2008).
 
 In the context of North America's Pacific coast, HAB events are
 typically caused by marine diatoms or dinoflagellates (Lewitus et
-al.~2012). Pseudo-nitzschia is a marine diatom genus responsible for a
-significant portion of Harmful Algal Bloom events in coastal California
-(Zhu et al.~2017). Although some species of Pseudo-nitzschia are
-nontoxigenic, many produce a neurotoxin called domoic acid (DA) which is
-known to cause death in marine mammals and birds. DA is also the cause
-of amnesic shellfish poisoning in humans, as this toxin bioaccumulates
-in fish and shellfish (Smith et al.~2017).
+al.~2012). One example of a harmful marine diatom is Pseudo-nitzschia;
+this genus is responsible for a significant portion of Harmful Algal
+Bloom events in coastal California (Zhu et al.~2017). Although some
+species of Pseudo-nitzschia are nontoxigenic, many produce a neurotoxin
+called domoic acid (DA) which is known to cause death in marine mammals
+and birds. DA is also the cause of amnesic shellfish poisoning in
+humans, as this toxin bioaccumulates in fish and shellfish (Smith et
+al.~2017).
 
 A second dominant harmful algal genus in coastal California is
 Alexandrium, which is a dinoflagellate known to produce toxins
@@ -147,6 +147,8 @@ are important in that they better our understanding of how harmful algal
 blooms are changing in prevalence or distribution thoughout southern
 California and which environmental factors are driving these changes.
 
+\newpage
+
 \hypertarget{dataset-information}{%
 \section{Dataset Information}\label{dataset-information}}
 
@@ -166,10 +168,9 @@ physical data is contained in the ``Water Quality'' dataset and measures
 nutrient concentration (uM), chlorophyll, toxicity, sea surface
 temperature (SST), and salinity. The dependent variables of this study
 are the algae concentrations of Pseudo-nitzschia seriata (``seriata''
-refers to the larger size class of Pseudo-nitzschia, which is generally
-a more toxigenic group within the genus) and Alexandrium spp. These
-harmful algae species groups cause amnesic shellfish poisoning and
-paralytic shellfish poisoning, respectively.
+refers to the larger size and more toxigenic class of Pseudo-nitzschia)
+and Alexandrium spp. These harmful algae species groups cause amnesic
+shellfish poisoning and paralytic shellfish poisoning, respectively.
 
 The original data is stored in a Darwin Core Archive and the
 dwca\_read() function from the ``finch'' package was used to extract the
@@ -256,13 +257,13 @@ StearnsWharf & 2008-06-30 & 2021-07-12\\
 
 The preliminary analysis showed the relationships between algal
 concentrations location and temperature, temperature and location, and
-various nutrient concentrations over time. Figure 1 shows the change of
+various nutrient concentrations over time. Fig. 1 shows the change of
 Pseudo-nitzschia and Alexandrium over time and by temperature. For both
 algal species, concentrations are often 0 cells/L for across all
 sampling locations. However, Cal Poly Pier, Newport Pier, and Santa
 Monica Pier have higher ranges in Pseudo-nitzschia concentrations than
 other locations. For Alexandrium concentrations, Cal Poly Pier and
-Newport Pier have higher ranges. The second column of graphs in Figure 1
+Newport Pier have higher ranges. The second column of graphs in Fig. 1
 indicate that higher algal concentrations occur at SST's between 10
 degrees Celsius and 20 degrees Celsius for both algal species group.
 
@@ -270,17 +271,17 @@ degrees Celsius and 20 degrees Celsius for both algal species group.
 
 \newpage
 
-Figure 2 shows the relationship between location and recorded SST.
-CalPoly and Stearns Wharf have lower SST's than that of Newport Pier,
-Santa Monica Pier, and Scripps Pier. This could be due to the
-latitudinal position of each sampling site, as cold water moves
-southward along the North American Pacific Coast.
+Fig. 2 shows the relationship between location and recorded SST. CalPoly
+and Stearns Wharf have lower SST's than that of Newport Pier, Santa
+Monica Pier, and Scripps Pier. This could be due to the latitudinal
+position of each sampling site, as cold water moves southward along the
+North American Pacific Coast.
 
 \includegraphics{Habs_Final_Report_files/figure-latex/Exploratory Analysis Part 2 SST-1.pdf}
 
 \newpage
 
-Figure 3 shows nutrient concentrations over time for each sampling site.
+Fig. 3 shows nutrient concentrations over time for each sampling site.
 For ammonium (NH4), nitrate (NO3), and silicate (SiO3), there is
 indication of seasonality as certain times of the year are associated
 with peaks in nutrient concentrations. Ammonium shows an increase
@@ -307,19 +308,19 @@ and five examining changes in Alexandrium concentrations over time at
 each SCCOOS site. These analyses were conducted by first filtering HAB
 data for a specific SCCOOS site and then generating a daily dataset
 encompassing that site's date range. The filtered dataset and daily
-dataset were then merged using ``eventDate'' as the shared column, and a
-linear interpolation was used to fill missing HAB data. We felt as
-though a linear interpolation was appropriate in this case because
-missing data gaps were not large but differences in algal concentrations
-were significant. Next, a monthly mean dataset was generated using the
+dataset were then merged using a shared column (date), and a linear
+interpolation was used to fill missing HAB data. We felt as though a
+linear interpolation was appropriate in this case because missing data
+gaps were not large but differences in algal concentrations were
+significant. Next, a monthly mean dataset was generated using the
 interpolated HAB values; this was the dataset used to establish starting
-points, create the time series object and run the seasonal Mann Kendall
-test. This process was used to create and test each time series object.
+points, create the time series objects and run the seasonal Mann Kendall
+tests. This process was used to create and test each time series object.
 
 \hypertarget{linear-regression-model}{%
 \subsection{Linear Regression Model}\label{linear-regression-model}}
 
-To answer Question 2, a Time-Series Analysis was conducted to observe
+To answer question 2, a time-series analysis was conducted to observe
 any variables of significance in determining algal concentrations. The
 processed data set was split into several groups by location and algal
 species. For each group, a linear model was conducted using the same
@@ -348,18 +349,19 @@ represented in Tables 5 and 6.
 Alexandrium change over
 time?}\label{question-1-how-do-concentrations-of-pseudo-nitzschia-and-alexandrium-change-over-time}}
 
-As seen in Table 4, the only sites that have statistically significant
-trends in HAB concentrations over time are Newport and San Diego;
-interestingly, the trends at these locations (which consist of an upward
-trend for Pseudo-nitzschia in Newport, a downward trend for
-Pseudo-nitzschia in San Diego, and a downward trend for Alexandrium in
-both Newport and San Diego) are significant for both HAB types.
+As delineated by an asterisk in Table 4, the only sites that have
+statistically significant trends in HAB concentrations over time are
+Newport and San Diego; interestingly, the trends at these locations
+(which consist of an upward trend for Pseudo-nitzschia in Newport, a
+downward trend for Pseudo-nitzschia in San Diego, and a downward trend
+for Alexandrium in both Newport and San Diego) are significant for both
+HAB types.
 
-It is important to note that the y-axes are not consistent across these
-plot grids, so the slopes of the linear regressions included in these
-figures cannot be cross compared. The horizontal line at 10,000 cells/L
-in Fig. 4 and at 100 cells/L in Fig. 5 delineate bloom thresholds for
-both species.
+It is important to note that the y-axes are not consistent across the
+plot grids in Fig. 4 and Fig. 5, so the slopes of the linear regressions
+included in these figures cannot be cross compared. The horizontal line
+at 10,000 cells/L in Fig. 4 and at 100 cells/L in Fig. 5 delineate bloom
+thresholds for both species.
 
 \begin{longtable}[t]{lll}
 \caption{\label{tab:Table 4}Seasonal Mann Kendall Results from Pseudo-nitzschia and Alexandrium Time Series Analyses}\\
@@ -384,7 +386,7 @@ Stearns Wharf & 0.48946 & 0.11334\\
 variation in HAB
 concentrations?}\label{question-2-which-environmental-variables-help-describe-variation-in-hab-concentrations}}
 
-According to Table 4, the concentration of Pseudo-nitzschia are
+According to Table 5, the concentration of Pseudo-nitzschia are
 positively associated with Nitrite concentrations and negatively
 associated with Silicate concentrations across sampling locations. The
 variables for SST, time, and other nutrients do not show a consistent
@@ -422,19 +424,21 @@ StearnsWharf & 3023.980 & -45828.06 & -2013.057 & 12277.17 & NA & NA & -1537.447
 
 \begingroup\fontsize{9}{11}\selectfont
 
-\begin{longtable}[t]{lrrrrrrrr}
+\begin{longtable}[t]{lrrrrrr}
 \caption{\label{tab:LM Output Tables}Coefficients for Alexandrium Linear Models}\\
 \toprule
-Site & NO3 & NO2 & SiO3 & PO4 & Temp. & Month & Year & R-sq.\\
+Site & NO3 & SiO3 & PO4 & Month & Year & R-sq.\\
 \midrule
-CalPoly & 2547.930 & -55271.86 & -1670.953 & NA & NA & 3397.633 & -10255.709 & 0.0606946\\
-NewportPier & 5006.021 & -45449.42 & -2395.457 & NA & -4097.108 & NA & NA & 0.0668576\\
-SantaMonicaPier & 14089.827 & 2852.33 & -2203.449 & NA & NA & NA & 1140.451 & 0.2623792\\
-ScrippsPier & 2219.378 & NA & -2640.881 & NA & -1501.370 & NA & NA & 0.0608496\\
-StearnsWharf & 3023.980 & -45828.06 & -2013.057 & 12277.17 & NA & NA & -1537.447 & 0.0506702\\
+CalPoly & -375.63363 & -52.805512 & 6117.9378 & 330.75946 & NA & 0.0443133\\
+NewportPier & NA & NA & 1484.5865 & -62.71097 & NA & 0.0246442\\
+SantaMonicaPier & NA & 4.606819 & NA & NA & 3.991525 & 0.0167177\\
+ScrippsPier & NA & NA & NA & -9.52388 & -10.159332 & 0.0323822\\
+StearnsWharf & -38.01425 & NA & 458.1815 & NA & 46.593697 & 0.0130540\\
 \bottomrule
 \end{longtable}
 \endgroup{}
+
+\newpage
 
 \hypertarget{summary-and-conclusions}{%
 \section{Summary and Conclusions}\label{summary-and-conclusions}}
@@ -444,12 +448,13 @@ California; there seems to be a consistent upward trend in Alexandrium
 in the more northern study sites but the only statistically significant
 trends for Alexandrium are downwards and are further south. Similarly,
 the type and strength of trends in Pseudo-nitzschia vary greatly with
-p-values ranging from 0.00045 to 0.699. One interesting similarity
-between the two HAB types is that the magnitude of blooms tend to vary
-greatly across sites. San Luis Obispo in particular seems to experience
-blooms that are orders of magnitudes larger than those experienced by
-monitoring sites further south; this is the case for Pseudo-nitzschia
-and Alexandrium blooms.
+p-values ranging from 0.00045 to 0.699.
+
+One interesting similarity between the two HAB types is that the
+magnitude of blooms tend to vary greatly across sites. San Luis Obispo
+in particular seems to experience blooms that are orders of magnitudes
+larger than those experienced by monitoring sites further south; this is
+the case for both Pseudo-nitzschia and Alexandrium blooms.
 
 According to the linear models, Pseudo-Nitzschia concentrations are
 positively associated with Nitrite and negatively associated with
@@ -458,16 +463,21 @@ associated with Phosphates. It is important to note that these linear
 models do not explain much of the variance. Moving forward, there should
 be more review on the interactions of algal species and nutrients. When
 algae species grow, they consume the nutrients in the water column and
-reduce the overall nutrient concentration. Statistical complications
-that arise from this interaction could be mitigated by averaging the
-nutrient concentration for the week or month, and the relationship
-between average nutrient concentration and average algae concentration
-could be studied. We could also convert the algae concentration data
-into Poisson data. According to the Southern California Coastal Ocean
-Observing System, a ``bloom'' event for Pseudo-nitzschia occurs when
-algae concentrations for this group exceed 10,000 cells/L. A ``count''
-of HAB events over a period of time and the relationship with the
-average SST and nutrient concentrations could be studied.
+reduce the overall nutrient concentration. Complications that arise from
+this interaction could be mitigated by averaging the nutrient
+concentration for the week or month or by converting algae data into
+Poisson data; research on the relationship between average nutrient
+concentration and average algae concentration would also be helpful
+here.
+
+Although the only upward trend of HAB concentrations that we observed
+were that of Pseudo-nitzschia concentrations in Newport, this upward
+trend has been noted in many species globally over the past 10-15 years
+(Lewitus et al.~2012) Consequently, it has become increasingly important
+to better understand the dynamics of these destructive and dangerous
+phenomena especially as our climate and oceans continue to change.
+
+\newpage
 
 \hypertarget{references}{%
 \section{References}\label{references}}
