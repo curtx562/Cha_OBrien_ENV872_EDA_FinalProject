@@ -1,18 +1,28 @@
 ---
-output: 
+title: "Harmful Algal Blooms in Southern California"
+author: "Curtis Cha & Bryce O'Brien"
+output:
   pdf_document:
     keep_tex: yes
     fig_caption: yes
     number_sections: yes
+<<<<<<< HEAD
 geometry: margin=2.54cm
 title: "Harmful Algal Blooms in Southern California"
 subtitle: "https://github.com/curtx562/Cha_OBrien_ENV872_EDA_FinalProject"
 author: "Curtis Cha & Bryce O'Brien"
+=======
+  html_document:
+    df_print: paged
+subtitle: https://github.com/curtx562/Cha_OBrien_ENV872_EDA_FinalProject
+geometry: margin = 2.54cm
+>>>>>>> 6401f15782abf07403f24b3e510dc85666593baf
 fontsize: 12pt
 mainfont: Times New Roman
 ---
 
 \newpage
+<<<<<<< HEAD
 \tableofcontents 
 \newpage
 \listoftables 
@@ -20,6 +30,15 @@ mainfont: Times New Roman
 \listoffigures 
 \newpage
 
+=======
+\tableofcontents
+\newpage
+\listoftables 
+\newpage
+\listoffigures
+\newpage
+---
+>>>>>>> 6401f15782abf07403f24b3e510dc85666593baf
 ```{r ,include=FALSE, warning=FALSE}
 library(knitr)
 opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
@@ -67,6 +86,8 @@ In the context of North America’s Pacific coast, HAB events are typically caus
 A second dominant harmful algal genus in coastal California is Alexandrium, which is a dinoflagellate known to produce toxins responsible for paralytic shellfish poisoning (Trainer et al. 2020). It is important to note that blooms of these two genera are defined by unique threshold concentrations: according to the Southern California Coastal Ocean Observing System as well as the Woods Hole Oceanographic Institution’s Outfall Monitoring Science Advisory Panel, a Pseudo-nitzschia bloom is defined as an event of over 10,000 cells/liter whereas an Alexandrium bloom is defined as an event of over 100 cells/liter.
   
 In this project, we utilized time series analyses and linear regression models to explore: 1) how concentrations of Pseudo-nitzschia and Alexandrium change over time and 2) which environmental variables (chemical, geographical, and physical factors) help describe variation in these concentrations. We narrowed our project scope to focus on the five following locations in southern California: San Luis Obsipo, Santa Barbara, Santa Monica, Newport and San Diego. Findings from this study are important in that they better our understanding of how harmful algal blooms are changing in prevalence or distribution thoughout southern California and which environmental factors are driving these changes. 
+  
+\newpage  
   
 # Dataset Information
 
@@ -833,7 +854,35 @@ Seriata.SantaBarbara.Monthly.Fig <- ggplot(Seriata.SantaBarbara.Monthly, aes(x =
 subtitle = "Santa Barbara 6/2008-7/2021") 
 ```
 
+<<<<<<< HEAD
 ```{r combining Pseudo-nitzschia figures, echo = FALSE, message = FALSE, warning  = FALSE, fig.width = 7, fig.height = 4, fig.cap='Mean Monthly Pseudo-nitzschia Concentrations'}
+=======
+\newpage
+
+```{r combining figures, echo = FALSE, message = FALSE, warning  = FALSE, fig.width = 7, fig.height = 4}
+#generate titles
+title_pn <- ggdraw() + 
+  draw_label(
+    "Fig. 4 Mean Monthly Pseudo-nitzschia Concentrations",
+    fontface = 'bold',
+    x = 0,
+    hjust = 0
+  ) +
+  theme(
+    plot.margin = margin(0, 0, 0, 7)
+  )
+
+title_al <- ggdraw() + 
+  draw_label(
+    "Fig. 5 Mean Monthly Alexandrium Concentrations",
+    fontface = 'bold',
+    x = 0,
+    hjust = 0
+  ) +
+  theme(
+    plot.margin = margin(0, 0, 0, 7)
+  ) 
+>>>>>>> 6401f15782abf07403f24b3e510dc85666593baf
 
 #cowplot for Pseudo-nitzschia
 PN.Monthly.Fig <- plot_grid(Seriata.CalPoly.Monthly.Fig + theme(legend.position = "none"), 
@@ -918,8 +967,6 @@ pn_lms_coef <- cbind(cities, do.call(bind_rows, lm_pn_cities)) %>% select(-"(Int
 
 colnames(pn_lms_coef) <- c("Site", "NO3", "NO2", "SiO3", "PO4" ,"Temp.", "Month", "Year", "R-sq.")
 
-#colnames(pn_lms) <- c("")
-
 write.csv(pn_lms_coef, "./Data/Output/PN_LM_Coefficients_Cities.csv")
 
 al_lms_coef <- cbind(cities, do.call(bind_rows, lm_al_cities)) %>% select(-"(Intercept)") %>% cbind(lm_al_r) %>% select(cities, no3, sio3, po4, month, year, lm_al_r)
@@ -934,11 +981,19 @@ write.csv(al_lms_coef, "./Data/Output/AL_LM_Coefficients_Cities.csv")
 kable(pn_lms_coef, caption = "Coefficients for Pseudo-nitzschia Linear Models", booktabs=TRUE, format="latex", longtable=TRUE) %>%
   kable_styling(latex_options="HOLD_position", font  = 9)
 
+<<<<<<< HEAD
 kable(pn_lms_coef, caption = "Coefficients for Alexandrium Linear Models", booktabs=TRUE, format="latex", longtable=TRUE) %>%
   kable_styling(latex_options="HOLD_position", font = 9)
 ```
 
 \newpage 
+=======
+kable(al_lms_coef, caption = "Coefficients for Alexandrium Linear Models", booktabs=TRUE, format="latex", longtable=TRUE) %>%
+  kable_styling(latex_options="HOLD_position", font = 9)
+```
+
+\newpage
+>>>>>>> 6401f15782abf07403f24b3e510dc85666593baf
 
 # Summary and Conclusions
 
